@@ -49,6 +49,7 @@ const uiOptions = {
   bundle: true,
   write: false,
   outdir: "dist/ui-tmp",
+  loader: { ".png": "dataurl" },
   target: "es2017",
   jsx: "automatic",
   minify: !watch,

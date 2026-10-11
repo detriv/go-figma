@@ -1,8 +1,14 @@
+<p align="center">
+  <img src="docs/images/goapp-logo-128.png" alt="Logo GoApp Figma" width="96" height="96">
+</p>
+
 # GoApp Figma – Design to Code
 
 [English](README.md) · **Tiếng Việt**
 
 Plugin Figma chuyển layer đang chọn thành **HTML + CSS**, **React + Tailwind (v4)** hoặc **HTML + Tailwind**, kèm một **MCP server** để Claude Code, Codex, Cursor… đọc design và tự viết code theo codebase.
+
+![GoApp Figma — từ thiết kế đến code](docs/images/marketing/00-thumbnail-goapp-figma.png)
 
 <!-- ![Plugin GoApp Figma: chọn frame, code tự cập nhật](docs/images/overview.png) -->
 
@@ -12,8 +18,17 @@ Plugin Figma chuyển layer đang chọn thành **HTML + CSS**, **React + Tailwi
 - **MCP cho AI agent**: nút **Copy for AI** → dán vào agent → agent đọc design qua MCP rồi code.
 - Không gọi mạng: mọi xử lý diễn ra trong sandbox của Figma (trừ font Google cho preview và kết nối MCP tới `localhost`).
 
+## Tính năng nổi bật
+
+| | | |
+| --- | --- | --- |
+| ![Chuyển thiết kế thành code](docs/images/marketing/01-design-to-code.png) | ![Xem trước trực tiếp](docs/images/marketing/02-live-preview.png) | ![Giao diện responsive](docs/images/marketing/03-responsive.png) |
+| ![Nhiều trạng thái giao diện](docs/images/marketing/04-ui-states.png) | ![Xuất project hoàn chỉnh](docs/images/marketing/05-export-projects.png) | ![Xuất asset thông minh](docs/images/marketing/06-smart-assets.png) |
+| ![Copy for AI](docs/images/marketing/07-copy-for-ai.png) | ![MCP cho AI agent](docs/images/marketing/08-mcp-ai-agents.png) | ![Design Mode và Dev Mode](docs/images/marketing/09-design-dev-mode.png) |
+
 ## Mục lục
 
+- [Tính năng nổi bật](#tính-năng-nổi-bật)
 - [Cài đặt](#cài-đặt)
 - [Sử dụng](#sử-dụng)
 - [Export project](#export-project)

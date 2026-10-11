@@ -1,8 +1,14 @@
+<p align="center">
+  <img src="docs/images/goapp-logo-128.png" alt="GoApp Figma logo" width="96" height="96">
+</p>
+
 # GoApp Figma – Design to Code
 
 **English** · [Tiếng Việt](README.vi.md)
 
 A Figma plugin that turns the selected layers into **HTML + CSS**, **React + Tailwind (v4)** or **HTML + Tailwind**, plus an **MCP server** that lets Claude Code, Codex, Cursor… read the design and write code that fits your codebase.
+
+![GoApp Figma — from design to code](docs/images/marketing/00-thumbnail-goapp-figma.png)
 
 <!-- ![GoApp Figma: select a frame, the code updates live](docs/images/overview.png) -->
 
@@ -12,8 +18,17 @@ A Figma plugin that turns the selected layers into **HTML + CSS**, **React + Tai
 - **MCP for AI agents**: click **Copy for AI** → paste into your agent → it reads the design over MCP and implements it.
 - No network calls: everything runs inside Figma's sandbox (except Google Fonts for the preview and the MCP connection to `localhost`).
 
+## Feature highlights
+
+| | | |
+| --- | --- | --- |
+| ![Design to code](docs/images/marketing/01-design-to-code.png) | ![Live preview](docs/images/marketing/02-live-preview.png) | ![Responsive layouts](docs/images/marketing/03-responsive.png) |
+| ![UI states](docs/images/marketing/04-ui-states.png) | ![Complete project export](docs/images/marketing/05-export-projects.png) | ![Smart asset export](docs/images/marketing/06-smart-assets.png) |
+| ![Copy for AI](docs/images/marketing/07-copy-for-ai.png) | ![MCP for AI agents](docs/images/marketing/08-mcp-ai-agents.png) | ![Design and Dev Mode](docs/images/marketing/09-design-dev-mode.png) |
+
 ## Contents
 
+- [Feature highlights](#feature-highlights)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Export project](#export-project)

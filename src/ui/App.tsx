@@ -17,6 +17,7 @@ import { containerAt, contentBottom, splitPreview } from "./lazyPreview";
 import { LoadingState, ProgressBar, RunInfo, type Run } from "./RunStatus";
 import { estimateTokens, formatTokens } from "./tokens";
 import { createZip } from "./zip";
+import logoUrl from "./assets/goapp-logo.png";
 
 type Status = "loading" | "empty" | "ready" | "error";
 
@@ -122,6 +123,10 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
+        <div className="brand" title="GoApp Figma">
+          <img className="brand-logo" src={logoUrl} alt="" />
+          <span className="brand-name">GoApp</span>
+        </div>
         <label className="target-select" title="Output stack">
           <select
             value={settings?.target ?? ""}
