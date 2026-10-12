@@ -238,6 +238,18 @@ describe("generate", () => {
     expect(result.previewSize).toEqual({ width: 320, height: 200 });
   });
 
+  it("separates several pages in the preview with a named band, but not in the code", () => {
+    const pages = [frame({ name: "Home" }), frame({ name: "About <us>" })];
+    const result = generate(pages, [], { target: "html-css" }, new Warnings());
+    expect(result.previewHtml.match(/<section class="goapp-preview-page">/g)).toHaveLength(2);
+    expect(result.previewHtml).toContain('<div class="goapp-preview-page-label">Home</div>');
+    expect(result.previewHtml).toContain("About &lt;us&gt;");
+    expect(result.sections[0].code).not.toContain("goapp-preview");
+
+    const single = generate([card], [], { target: "html-css" }, new Warnings());
+    expect(single.previewHtml).not.toContain("<section");
+  });
+
   const asset: ImageAsset = {
     hash: "abc123",
     fileName: "hero-abc123.png",

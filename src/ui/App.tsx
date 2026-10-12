@@ -664,6 +664,12 @@ function Preview({ html, size, state }: { html: string; size: GenerateResult["pr
   };
   useEffect(showState, [state]);
 
+  // Bands between pages keep their on-screen size however far the preview is scaled down.
+  const showScale = () => {
+    frame.current?.contentDocument?.documentElement?.style.setProperty("--goapp-ui", String(1 / (scaleRef.current || 1)));
+  };
+  useEffect(showScale, [scale]);
+
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -692,6 +698,7 @@ function Preview({ html, size, state }: { html: string; size: GenerateResult["pr
     };
     const onLoad = () => {
       showState();
+      showScale();
       measure();
       observer?.disconnect();
       const body = iframe.contentDocument?.body;

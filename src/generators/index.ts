@@ -6,7 +6,8 @@ import type { Settings } from "../shared/settings";
 import type { StyleContext } from "./css";
 import { googleFontLinks } from "./fonts";
 import { generateHtmlCss } from "./htmlCss";
-import { breakpointLabel, pageGroups, previewWidth } from "./responsive";
+import { el, print, text } from "../core/markup";
+import { breakpointLabel, pageGroups, pageName, previewWidth } from "./responsive";
 import { generateTailwind } from "./tailwind";
 import { buildTree } from "./tree";
 
@@ -50,7 +51,7 @@ export function generate(
   const fits = imageFits(roots, images);
   return {
     sections,
-    previewHtml: previewDocument(preview.html, preview.css, googleFontLinks(roots)),
+    previewHtml: previewDocument(separatedPages(roots, preview.pages), preview.css, googleFontLinks(roots)),
     previewSize: previewSizes?.[previewSizes.length - 1] ?? {
       width: Math.max(0, ...roots.map((r) => r.box.width)),
       height: roots.reduce((sum, r) => sum + r.box.height, 0),
@@ -78,6 +79,40 @@ function mergedPreviews(roots: IRNode[]): PreviewSize[] | undefined {
   }));
 }
 
+/**
+ * Several pages preview one below the other; each gets a band with its name so
+ * they don't run into each other. Only the preview has it, not the code.
+ */
+function separatedPages(roots: IRNode[], pages: string[]): string {
+  if (pages.length < 2) return pages.join("\n");
+  const groups = pageGroups(roots);
+  return pages
+    .map((page, i) => {
+      const label = print([el("div", [["class", PREVIEW_PAGE_LABEL]], [text(pageName(groups[i]))])], "html");
+      return `<section class="${PREVIEW_PAGE}">\n${label}\n${page}\n</section>`;
+    })
+    .join("\n");
+}
+
+const PREVIEW_PAGE = "goapp-preview-page";
+const PREVIEW_PAGE_LABEL = "goapp-preview-page-label";
+
+/**
+ * The plugin window sets `--goapp-ui` to how much it scales the preview down,
+ * so the page bands keep a readable size at any zoom.
+ */
+const PREVIEW_PAGE_CSS = `.${PREVIEW_PAGE} { display: flow-root; }
+.${PREVIEW_PAGE} + .${PREVIEW_PAGE} { margin-top: calc(24px * var(--goapp-ui, 1)); }
+.${PREVIEW_PAGE_LABEL} {
+  padding: calc(6px * var(--goapp-ui, 1)) calc(10px * var(--goapp-ui, 1));
+  background: #2c2c2c;
+  color: #fff;
+  font: 600 calc(11px * var(--goapp-ui, 1)) / 1.4 system-ui, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}`;
+
 function previewDocument(html: string, css: string, fontLinks: string): string {
   return `<!doctype html>
 <html>
@@ -87,6 +122,7 @@ ${fontLinks}
 <style>
 body { margin: 0; font-family: sans-serif; }
 ${css}
+${PREVIEW_PAGE_CSS}
 </style>
 </head>
 <body>
