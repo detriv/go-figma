@@ -67,6 +67,7 @@ Run the plugin and select a frame. The code updates whenever the selection or th
 | Code tabs / **Preview** | View each generated file, or a live preview in an iframe |
 | `≈ … tokens` | Estimated token count of the code (how much of an agent's context the selection takes) |
 | Copy · Images · Export | Copy the code, download images as a zip, export the whole project |
+| **FrontFlow** | Send the selection to GoApp FrontFlow (the feature run waiting for a design picks it up); enabled while the MCP server runs |
 | **Copy for AI** | Copy a prompt that has an agent read the selection over MCP |
 
 <!-- ![Preview tab](docs/images/preview.png) -->
@@ -244,6 +245,7 @@ Every element in the reference code carries `data-node-id`, `data-name`, `data-c
 ### Notes
 
 - Several agents can share one plugin: the first process holds the port as the hub, later processes relay requests through it; when the hub exits, another process takes over.
+- GoApp FrontFlow listens on `ws://127.0.0.1:3940/events` (and starts `--hub` itself when no hub runs). **FrontFlow** in the plugin sends the hub a `push_handoff` request with the frames (ids, breakpoint/state tags, links) and the Copy for AI prompt; the hub forwards it to every listener as `{ "type": "handoff", "handoff": … }`.
 - After `npm run build`, the first process running the new build (a new agent, an `/mcp` reconnect, or `npm run hub`) is handed the port by the old hub; old processes become peers and the plugin reconnects after ~1.5s. No need to restart every agent.
 - The server listens on `127.0.0.1`/`::1` only and rejects connections carrying a web page `Origin`, so websites cannot read the design.
 - The connection is listed in the manifest's `devAllowedDomains`: it works when the plugin is imported for development, not in a published build.

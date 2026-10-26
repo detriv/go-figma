@@ -9,12 +9,16 @@
 // The hub also tells the plugin which agent sessions are connected (peers
 // report theirs), and answers its MCP panel's requests to add or remove Go
 // Figma in agent configs (agents.ts).
+//
+// Local apps (GoApp FrontFlow) listen at /events; the plugin's FrontFlow button
+// pushes the selection through the hub to them.
 import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer } from "ws";
 import {
   BRIDGE_AGENT_PATH,
+  BRIDGE_EVENTS_PATH,
   BRIDGE_PLUGIN_PATH,
   BYTES_TAG,
   type AgentSession,
@@ -23,6 +27,8 @@ import {
   type BridgeRequest,
   type BridgeResponse,
   type BridgeTiming,
+  type Handoff,
+  type HubMethod,
   type HubRequest,
   type HubResponse,
   type HubState,
@@ -90,6 +96,8 @@ export class Hub {
   private peerSessions = new Map<WebSocket, AgentSession>();
   /** Hub: every connected peer process. */
   private peers = new Set<WebSocket>();
+  /** Hub: apps listening on /events for FrontFlow hand-offs. */
+  private listeners = new Set<WebSocket>();
   /** Peer: wait before rejoining when the hub closes, to let a newer build take the port. */
   private rejoinDelay = 0;
   private closed = false;
@@ -184,6 +192,9 @@ export class Hub {
     }
     this.peers.clear();
     this.peerSessions.clear();
+    // Listeners reconnect on close and find the newer hub.
+    for (const listener of this.listeners) listener.close();
+    this.listeners.clear();
     this.plugin?.close(CLOSE_HANDOFF, "Handing over to a newer GoApp Figma server");
     this.plugin = null;
     setTimeout(() => {
@@ -198,12 +209,15 @@ export class Hub {
     const wss = new WebSocketServer({ noServer: true });
     const upgrade = (req: IncomingMessage, socket: Duplex, head: Buffer) => {
       const path = (req.url ?? "").split("?")[0];
-      const kind = path === BRIDGE_PLUGIN_PATH ? "plugin" : path === BRIDGE_AGENT_PATH ? "agent" : null;
+      const kind =
+        path === BRIDGE_PLUGIN_PATH ? "plugin" : path === BRIDGE_AGENT_PATH ? "agent" : path === BRIDGE_EVENTS_PATH ? "events" : null;
       if (!kind || !originAllowed(kind, req.headers.origin)) {
         socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
         return;
       }
-      wss.handleUpgrade(req, socket, head, (ws) => (kind === "plugin" ? this.attachPlugin(ws) : this.attachPeer(ws)));
+      wss.handleUpgrade(req, socket, head, (ws) =>
+        kind === "plugin" ? this.attachPlugin(ws) : kind === "agent" ? this.attachPeer(ws) : this.attachListener(ws),
+      );
     };
     const create = () => {
       const server = createServer((_req, res) => res.writeHead(426).end("GoApp Figma MCP bridge: WebSocket only.\n"));
@@ -309,12 +323,40 @@ export class Hub {
     });
   }
 
-  /** Management requests from the plugin's MCP panel; this process answers them itself. */
+  private attachListener(ws: WebSocket): void {
+    this.listeners.add(ws);
+    log("FrontFlow connected.");
+    ws.on("error", () => {});
+    ws.on("close", () => {
+      if (this.listeners.delete(ws)) log("FrontFlow disconnected.");
+    });
+  }
+
+  /** Forward a FrontFlow hand-off to every app listening on /events. */
+  private pushHandoff(handoff: Handoff): { listeners: number } {
+    const message = JSON.stringify({ type: "handoff", handoff });
+    let listeners = 0;
+    for (const ws of this.listeners) {
+      if (ws.readyState !== WebSocket.OPEN) continue;
+      ws.send(message);
+      listeners++;
+    }
+    log(`push_handoff ${handoff.id}: ${handoff.nodes.length} frame(s) sent to ${listeners} listener(s).`);
+    return { listeners };
+  }
+
+  /** Requests from the plugin window (MCP panel, FrontFlow button); this process answers them itself. */
   private async answerPlugin(ws: WebSocket, request: HubRequest): Promise<void> {
+    if (request.method === "push_handoff") {
+      const result = this.pushHandoff((request as HubRequest<"push_handoff">).params.handoff);
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "hub-response", id: request.id, ok: true, result }));
+      return;
+    }
     let response: HubResponse;
     try {
       const server = { command: "node", args: [this.options.serverPath] };
-      const result = await handleHubRequest(request.method, request.params, server);
+      const { method, params } = request as HubRequest<Exclude<HubMethod, "push_handoff">>;
+      const result = await handleHubRequest(method, params, server);
       response = { type: "hub-response", id: request.id, ok: true, result };
       if (request.method !== "list_agents") log(`${request.method} ${JSON.stringify(request.params)}: done.`);
     } catch (error) {
@@ -426,8 +468,8 @@ export class Hub {
  * Browsers always send Origin on WebSocket handshakes, so web pages can't pose
  * as an agent and read designs. Plugin iframes have an opaque ("null") origin.
  */
-function originAllowed(kind: "plugin" | "agent", origin: string | undefined): boolean {
-  if (kind === "agent") return origin === undefined;
+function originAllowed(kind: "plugin" | "agent" | "events", origin: string | undefined): boolean {
+  if (kind !== "plugin") return origin === undefined;
   return origin === "null" || (origin !== undefined && /^https:\/\/([a-z0-9-]+\.)*figma\.com$/.test(origin));
 }
 

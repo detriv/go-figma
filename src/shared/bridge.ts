@@ -6,6 +6,7 @@
 // Messages are JSON; `Uint8Array`s travel as `{ "$bytes": "<base64>" }`.
 import type { AnnotationNote, ComponentUsage, DesignAsset } from "../generators/designContext";
 import type { ImageFit } from "../core/imageFit";
+import type { Breakpoint } from "../core/ir";
 import type { ProjectFile } from "../generators/project";
 import type { CodeSection } from "./messages";
 import type { Target } from "./settings";
@@ -15,6 +16,8 @@ export const BRIDGE_PORT = 3940;
 export const BRIDGE_PLUGIN_PATH = "/plugin";
 /** Path other MCP server processes connect to when this port already has a hub. */
 export const BRIDGE_AGENT_PATH = "/agent";
+/** Path local apps (GoApp FrontFlow) listen on for selections pushed with the plugin's FrontFlow button. */
+export const BRIDGE_EVENTS_PATH = "/events";
 export const BYTES_TAG = "$bytes";
 
 export interface NodeQuery {
@@ -193,10 +196,43 @@ export interface AgentConfigStatus {
   reload: string;
 }
 
+// ---------------------------------------------------------------------------
+// FrontFlow hand-off: the plugin's FrontFlow button sends the selection to the
+// hub, which forwards it to every app listening on /events (GoApp FrontFlow
+// shows it in the feature run waiting for a design).
+//
+//   plugin ──hub-request push_handoff──▶ hub ──{ type: "handoff", handoff }──▶ /events listeners
+
+export interface HandoffNode {
+  id: string;
+  name: string;
+  width: number;
+  breakpoint?: Breakpoint;
+  state?: string;
+  /** Link to the layer, when the plugin can read the file key. */
+  url?: string;
+}
+
+export interface Handoff {
+  /** GF-XXXXXX, to tell pushes apart. */
+  id: string;
+  /** Plugins can't read the Figma project a file belongs to; the file name stands in for it. */
+  projectName: string;
+  fileName: string;
+  fileKey?: string;
+  target: Target;
+  nodes: HandoffNode[];
+  /** The Copy for AI prompt for the same layers. */
+  prompt: string;
+  createdAt: string;
+}
+
 export interface HubMethods {
   list_agents: { params: Record<string, never>; result: { agents: AgentConfigStatus[] } };
   add_agent: { params: { agent: AgentId }; result: AgentConfigStatus };
   remove_agent: { params: { agent: AgentId }; result: AgentConfigStatus };
+  /** `listeners`: how many apps got it; 0 when FrontFlow isn't running. */
+  push_handoff: { params: { handoff: Handoff }; result: { listeners: number } };
 }
 
 export type HubMethod = keyof HubMethods;

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BREAKPOINTS, isBreakpoint, type Breakpoint } from "../core/ir";
 import { defaultStateNames, guessBreakpoints, toStateName } from "../core/pageTags";
-import type { HubState } from "../shared/bridge";
+import type { Handoff, HubState } from "../shared/bridge";
 import type { CodeSection, GenerateResult, RunStats, SelectionSource, ToUIMessage, UIResult } from "../shared/messages";
 import type { ProjectFile } from "../generators/project";
 import { TARGETS, type Settings, type Target } from "../shared/settings";
@@ -9,7 +9,7 @@ import { connectBridge, type Bridge, type BridgeStatus } from "./bridge";
 import { CodeView } from "./CodeView";
 import { CopyButton, send } from "./common";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { ChevronIcon, CopyIcon, ExportIcon, FrameIcon, ImageIcon, SlidersIcon, SparkleIcon, WarningIcon } from "./icons";
+import { ChevronIcon, CopyIcon, ExportIcon, FrameIcon, ImageIcon, PlugIcon, SlidersIcon, SparkleIcon, WarningIcon } from "./icons";
 import { McpPanel } from "./McpPanel";
 import { optimizeFiles } from "./optimize";
 import { addImages, imageBytes, usePreviewHtml } from "./images";
@@ -221,6 +221,9 @@ export function App() {
               >
                 <ExportIcon />
               </button>
+            )}
+            {settings && source && bridge && (
+              <FrontFlowButton bridge={bridge} connected={bridgeStatus === "connected"} source={source} target={settings.target} />
             )}
             {settings && source && (
               <CopyButton
@@ -509,12 +512,62 @@ function StateInput({ value, isDefault, onCommit }: { value: string; isDefault: 
   );
 }
 
+/**
+ * Sends the selection to GoApp FrontFlow, which listens on the MCP hub's /events
+ * path and shows it in the feature run waiting for a design.
+ */
+function FrontFlowButton({ bridge, connected, source, target }: { bridge: Bridge; connected: boolean; source: SelectionSource; target: Target }) {
+  const [sending, setSending] = useState(false);
+  const push = async () => {
+    setSending(true);
+    try {
+      const { listeners } = await bridge.call("push_handoff", { handoff: handoff(source, target) });
+      send({ type: "notify", message: listeners > 0 ? "Sent to FrontFlow" : "FrontFlow isn't open: start it, then send again" });
+    } catch (error) {
+      send({ type: "notify", message: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setSending(false);
+    }
+  };
+  const title = connected
+    ? "Send the selected frames to GoApp FrontFlow: the feature run waiting for a design picks them up"
+    : "Start GoApp FrontFlow (or the GoApp Figma MCP server) to send the selection to it";
+  return (
+    <button className="btn-utility" disabled={!connected || sending} title={title} aria-label={title} onClick={() => void push()}>
+      <PlugIcon />
+      FrontFlow
+    </button>
+  );
+}
+
+function handoff(source: SelectionSource, target: Target): Handoff {
+  const id = `GF-${Math.random().toString(36).slice(2, 8).toUpperCase().padEnd(6, "0")}`;
+  return {
+    id,
+    projectName: source.fileName,
+    fileName: source.fileName,
+    ...(source.fileKey ? { fileKey: source.fileKey } : {}),
+    target,
+    nodes: source.nodes.map((n) => {
+      const url = nodeUrl(source, n.id);
+      return url ? { ...n, url } : { ...n };
+    }),
+    prompt: agentPrompt(source, target),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+/** Link to a layer; only plugins that can read the file key get one. */
+function nodeUrl(source: SelectionSource, id: string): string | undefined {
+  return source.fileKey && /^\d+:\d+$/.test(id) ? `${figmaUrl(source.fileKey, source.fileName)}?node-id=${id.replace(":", "-")}` : undefined;
+}
+
 /** Prompt for an AI coding agent with the GoApp Figma MCP server installed. */
 function agentPrompt(source: SelectionSource, target: Target): string {
-  const link = (id: string) =>
-    source.fileKey && /^\d+:\d+$/.test(id)
-      ? ` ${figmaUrl(source.fileKey, source.fileName)}?node-id=${id.replace(":", "-")}`
-      : "";
+  const link = (id: string) => {
+    const url = nodeUrl(source, id);
+    return url ? ` ${url}` : "";
+  };
   const layers = source.nodes
     .map((n) => {
       const tag = n.breakpoint ? `, ${n.breakpoint} breakpoint` : n.state ? `, state "${n.state}"` : "";

@@ -67,6 +67,7 @@ Chạy plugin, chọn một frame. Code tự cập nhật khi đổi selection h
 | Tab code / **Preview** | Xem code từng file hoặc preview thật trong iframe |
 | `≈ … tokens` | Ước lượng số token của code (để biết selection chiếm bao nhiêu context của agent) |
 | Copy · Tải ảnh · Export | Copy code, tải ảnh dạng zip, export cả project |
+| **FrontFlow** | Gửi selection sang GoApp FrontFlow (feature run đang chờ design nhận luôn); bật khi MCP server đang chạy |
 | **Copy for AI** | Copy prompt cho agent đọc selection qua MCP |
 
 <!-- ![Tab Preview](docs/images/preview.png) -->
@@ -244,6 +245,7 @@ Mỗi phần tử trong code tham chiếu mang `data-node-id`, `data-name`, `dat
 ### Ghi chú
 
 - Nhiều agent chạy cùng lúc dùng chung một plugin: process đầu giữ port làm hub, các process sau chuyển request qua hub; hub thoát thì process khác tự tiếp quản.
+- GoApp FrontFlow nghe ở `ws://127.0.0.1:3940/events` (tự chạy `--hub` nếu chưa có hub). Nút **FrontFlow** trong plugin gửi hub request `push_handoff` gồm các frame (id, tag breakpoint/state, link) và prompt Copy for AI; hub chuyển tiếp cho mọi listener dạng `{ "type": "handoff", "handoff": … }`.
 - Sau khi `npm run build`, process đầu tiên chạy bản mới (agent mới mở, `/mcp` reconnect, hoặc `npm run hub`) sẽ được hub bản cũ nhường port; các process cũ chuyển thành peer, plugin tự nối lại sau ~1.5s. Không cần khởi động lại mọi agent.
 - Server chỉ nghe `127.0.0.1`/`::1`, từ chối kết nối có `Origin` của trang web, nên trang web không đọc được design.
 - Kết nối nằm trong `devAllowedDomains` của manifest: chạy được khi import plugin dạng development, không chạy ở bản publish.
