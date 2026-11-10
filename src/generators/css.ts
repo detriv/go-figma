@@ -17,6 +17,8 @@ export interface StyleContext {
   svgUrl?(node: SvgNode): string;
   /** Make single frame exports full-bleed fluid and responsive. */
   fluidSingleFrame?: boolean;
+  /** Infer semantic HTML5 tags from layer names and hierarchy. */
+  semanticHtml?: boolean;
 }
 
 const px = (n: number) => (n === 0 ? "0" : `${fmt(n)}px`);
@@ -30,29 +32,54 @@ export function nodeStyle(node: IRNode, parent: FrameNode | null, ctx: StyleCont
   // --- How this element lays out its children -----------------------------
   if (node.kind === "frame" && node.layout) {
     const { layout } = node;
-    push("display", "flex");
-    if (layout.direction === "column") push("flex-direction", "column");
-    if (layout.wrap) push("flex-wrap", "wrap");
-    if (layout.justify !== "start") push("justify-content", JUSTIFY[layout.justify]);
-    // CSS defaults to `stretch`, Figma to `start`, so always emit it.
-    push("align-items", ALIGN[layout.align]);
-    if (layout.wrap && layout.alignContent) push("align-content", ALIGN_CONTENT[layout.alignContent]);
+    if (layout.direction === "grid") {
+      push("display", "grid");
+      const cols = layout.grid?.columns ?? 1;
+      push("grid-template-columns", `repeat(${cols}, minmax(0, 1fr))`);
+      if (layout.grid?.rows && layout.grid.rows > 1) {
+        push("grid-template-rows", `repeat(${layout.grid.rows}, minmax(0, 1fr))`);
+      }
+      const colGap = layout.grid?.columnGap ?? layout.gap ?? 0;
+      const rowGap = layout.grid?.rowGap ?? layout.crossGap ?? layout.gap ?? 0;
+      if (colGap > 0 && colGap === rowGap) {
+        push("gap", px(colGap));
+      } else {
+        if (rowGap > 0) push("row-gap", px(rowGap));
+        if (colGap > 0) push("column-gap", px(colGap));
+      }
 
-    if (layout.wrap) {
-      const [rowGap, columnGap] =
-        layout.direction === "row" ? [layout.crossGap, layout.gap] : [layout.gap, layout.crossGap];
-      if (rowGap > 0) push("row-gap", px(rowGap));
-      if (columnGap > 0 && layout.justify !== "space-between") push("column-gap", px(columnGap));
-    } else if (layout.gap > 0 && layout.justify !== "space-between") {
-      push("gap", px(layout.gap));
-    }
+      // Figma draws inside strokes over the padding unless "strokes included in
+      // layout" is on; a CSS border always pushes content in, so compensate.
+      const border = node.strokesIncludedInLayout ? null : insideBorder(node);
+      const pad = (side: keyof Sides) => Math.max(0, layout.padding[side] - (border?.[side] ?? 0));
+      for (const side of ["top", "right", "bottom", "left"] as const) {
+        if (pad(side) > 0) push(`padding-${side}`, px(pad(side)));
+      }
+    } else {
+      push("display", "flex");
+      if (layout.direction === "column") push("flex-direction", "column");
+      if (layout.wrap) push("flex-wrap", "wrap");
+      if (layout.justify !== "start") push("justify-content", JUSTIFY[layout.justify]);
+      // CSS defaults to `stretch`, Figma to `start`, so always emit it.
+      push("align-items", ALIGN[layout.align]);
+      if (layout.wrap && layout.alignContent) push("align-content", ALIGN_CONTENT[layout.alignContent]);
 
-    // Figma draws inside strokes over the padding unless "strokes included in
-    // layout" is on; a CSS border always pushes content in, so compensate.
-    const border = node.strokesIncludedInLayout ? null : insideBorder(node);
-    const pad = (side: keyof Sides) => Math.max(0, layout.padding[side] - (border?.[side] ?? 0));
-    for (const side of ["top", "right", "bottom", "left"] as const) {
-      if (pad(side) > 0) push(`padding-${side}`, px(pad(side)));
+      if (layout.wrap) {
+        const [rowGap, columnGap] =
+          layout.direction === "row" ? [layout.crossGap, layout.gap] : [layout.gap, layout.crossGap];
+        if (rowGap > 0) push("row-gap", px(rowGap));
+        if (columnGap > 0 && layout.justify !== "space-between") push("column-gap", px(columnGap));
+      } else if (layout.gap > 0 && layout.justify !== "space-between") {
+        push("gap", px(layout.gap));
+      }
+
+      // Figma draws inside strokes over the padding unless "strokes included in
+      // layout" is on; a CSS border always pushes content in, so compensate.
+      const border = node.strokesIncludedInLayout ? null : insideBorder(node);
+      const pad = (side: keyof Sides) => Math.max(0, layout.padding[side] - (border?.[side] ?? 0));
+      for (const side of ["top", "right", "bottom", "left"] as const) {
+        if (pad(side) > 0) push(`padding-${side}`, px(pad(side)));
+      }
     }
   } else if (node.kind === "text") {
     if (node.text.alignVertical !== "top" && node.sizing.vertical === "fixed") {
@@ -140,21 +167,43 @@ function sizeStyle(node: IRNode, parent: FrameNode | null): Decl[] {
   const direction = parent?.layout && node.positioning === "flow" ? parent.layout.direction : null;
   const { horizontal, vertical } = node.sizing;
 
+  if (node.gridChild) {
+    if (node.gridChild.colSpan && node.gridChild.colSpan > 1) {
+      decls.push(["grid-column", `span ${node.gridChild.colSpan}`]);
+    }
+    if (node.gridChild.rowSpan && node.gridChild.rowSpan > 1) {
+      decls.push(["grid-row", `span ${node.gridChild.rowSpan}`]);
+    }
+    if (node.gridChild.colStart) {
+      decls.push(["grid-column-start", `${node.gridChild.colStart}`]);
+    }
+    if (node.gridChild.rowStart) {
+      decls.push(["grid-row-start", `${node.gridChild.rowStart}`]);
+    }
+  }
+
   // "fill" grows along the parent's main axis and stretches across the cross axis.
   const fill = (axis: "row" | "column"): Decl | null =>
     direction === null ? null : direction === axis ? ["flex", "1 1 0"] : ["align-self", "stretch"];
 
   if (horizontal === "fixed") decls.push(["width", px(node.box.width)]);
   else if (horizontal === "hug" && parent === null) decls.push(["width", "fit-content"]);
-  else if (horizontal === "fill") decls.push(...nonNull(fill("row")));
+  else if (horizontal === "fill") {
+    if (direction === "grid") decls.push(["width", "100%"]);
+    else decls.push(...nonNull(fill("row")));
+  }
 
   if (vertical === "fixed") decls.push(["height", px(node.box.height)]);
-  else if (vertical === "fill") decls.push(...nonNull(fill("column")));
+  else if (vertical === "fill") {
+    if (direction === "grid") decls.push(["height", "100%"]);
+    else decls.push(...nonNull(fill("column")));
+  }
 
   // Figma lets "fill" items shrink below their content (which then overflows);
   // flex items default to `min-width: auto`, which would force a wrap instead.
   if (direction === "row" && horizontal === "fill" && node.minWidth === undefined) decls.push(["min-width", "0"]);
   if (direction === "column" && vertical === "fill" && node.minHeight === undefined) decls.push(["min-height", "0"]);
+  if (direction === "grid" && horizontal === "fill" && node.minWidth === undefined) decls.push(["min-width", "0"]);
 
   // Fixed-size flex items must not shrink, Figma never squeezes them.
   const mainAxisSizing = direction === "row" ? horizontal : direction === "column" ? vertical : null;
@@ -226,7 +275,7 @@ function pin(
  */
 function overlapStyle(node: IRNode, parent: FrameNode | null): { margin: { top: number; left: number }; zIndex?: number } | null {
   const layout = parent?.layout;
-  if (!layout || layout.gap >= 0 || layout.wrap || layout.justify === "space-between") return null;
+  if (!layout || layout.direction === "grid" || layout.gap >= 0 || layout.wrap || layout.justify === "space-between") return null;
   const flow = parent.children.filter((c) => c.positioning === "flow");
   const index = flow.indexOf(node);
   if (index === -1) return null;

@@ -4,7 +4,7 @@
 
 # GoApp Figma – Design to Code
 
-**English** · [Tiếng Việt](README.vi.md)
+**English** · [Bahasa Indonesia](README.id.md) · [Tiếng Việt](README.vi.md)
 
 A Figma plugin that turns the selected layers into **HTML + CSS**, **React + Tailwind (v4)** or **HTML + Tailwind**, plus an **MCP server** that lets Claude Code, Codex, Cursor… read the design and write code that fits your codebase.
 
@@ -15,6 +15,9 @@ A Figma plugin that turns the selected layers into **HTML + CSS**, **React + Tai
 - Works in both **Design mode** (plugin window with a live preview) and **Dev Mode** (Figma's native Code panel).
 - **Export a runnable project**: a static site or a Next.js App Router app, images included.
 - **Merge several frames into one page**: by breakpoint (Responsive) or by state (States).
+- **Fluid single frame exports**: automatic full-bleed responsive layout with mobile/tablet/desktop preview and table horizontal scroll.
+- **Semantic HTML5 inference**: automatically infers `<button>`, `<nav>`, `<header>`, `<footer>`, `<aside>`, `<section>`, `<main>`, `<h1>`-`<h4>`, and `<p>`.
+- **CSS Grid Auto-Layout**: native conversion for Figma Grid layout (`grid-cols-N`, `gap-x-*`, `col-span-N`).
 - **MCP for AI agents**: click **Copy for AI** → paste into your agent → it reads the design over MCP and implements it.
 - No network calls: everything runs inside Figma's sandbox (except Google Fonts for the preview and the MCP connection to `localhost`).
 
@@ -128,6 +131,28 @@ When exporting a single frame, the plugin automatically creates a full-bleed flu
 - Multi-item flex rows wrap naturally (`flex-wrap`).
 - Data tables allow horizontal scrolling (`overflow-x: auto`) without wrapping rows, preserving columns.
 - The preview provides a viewport switcher (**Mobile 375px**, **Tablet 768px**, **Desktop**).
+
+### Semantic HTML5 inference
+
+When enabled in the ⚙ Code options menu (or default settings), the plugin infers clean HTML5 semantic tags based on layer names, roles, and typography hierarchy:
+- **Buttons**: Layers named `Button`, `Btn`, `CTA`, `Submit Button`, etc. render as `<button type="button">` with `cursor: pointer`.
+- **Navigation**: Frames named `Navbar`, `Navigation`, `Nav Menu` render as `<nav>`.
+- **Headers & Footers**: Frames named `Header`, `Top Bar` render as `<header>`; `Footer`, `Bottom Bar` render as `<footer>`.
+- **Sidebars & Sections**: Frames named `Sidebar`, `Aside`, `Drawer` render as `<aside>`; `Section` renders as `<section>`.
+- **Headings & Paragraphs**:
+  - `<h1>`: Text layers named `Hero Title`, `Page Title`, or with `font-size ≥ 36px`.
+  - `<h2>`: Layers named `Section Title`, `Subheading`, or `font-size ≥ 28px`.
+  - `<h3>`: Layers named `Card Title`, `Item Title`, or `font-size ≥ 22px`.
+  - `<h4>`: `font-size ≥ 18px` (bold).
+  - `<p>`: Layers named `Paragraph`, `Description`, `Body`, or standard body sizes (`≤ 16px`).
+
+### CSS Grid auto-layout
+
+Figma's native Grid Auto-Layout (`layoutMode === "GRID"`) is natively translated:
+- Container gets `display: grid; grid-template-columns: repeat(N, minmax(0, 1fr));` (CSS) and `grid grid-cols-N` (Tailwind).
+- Row and column gaps map to `column-gap` / `row-gap` (`gap-x-*`, `gap-y-*`, or `gap-*` when uniform).
+- Child items spanning multiple columns or rows translate into `grid-column: span N` (`col-span-N`) and `grid-row: span N` (`row-span-N`).
+- Child placement starts translate into `grid-column-start: N` (`col-start-N`) and `grid-row-start: N` (`row-start-N`).
 
 ### States (one page – several states)
 
@@ -361,8 +386,12 @@ npm run typecheck   # plugin + MCP server
 - Image fills: code always references `images/<file>` (no base64 inlining); the images button on the tab bar downloads a zip. CROP mode exports as `cover`; image opacity/filters are not applied yet.
 - **Optimize images** (on by default, in the ⚙ menu): each image file is scaled to 2× the largest size the design shows it at (never upscaled) and recompressed in the same format, so file names and code stay the same. Applies to image downloads, Export, and image files agents receive over MCP (`get_design_context`, `generate_code`, `export_project`). Turn it off to keep the originals.
 - Masks and blend modes are not supported yet (a warning is shown).
-- Grid auto layout and frames without auto layout → children are positioned `absolute` (following the layer's constraints).
+- Frames without auto layout → children are positioned `absolute` (following the layer's constraints). CSS Grid and Flex auto layout are fully supported.
 - Tailwind output targets v4 (dynamic spacing scale, `outline-solid`, …).
+
+## Credits & Attribution
+
+This project is based on and extends the open-source repository [go-figma](https://github.com/tuyndev18/go-figma) created by **tuyndev18** ([@tuyndev18](https://github.com/tuyndev18)). We extend our sincere gratitude to the original author for laying the solid foundation of this project.
 
 ## License
 

@@ -519,6 +519,32 @@ async function base(
     if (typeof value === "number") ir[key] = value * s;
   }
 
+  if (parentLayout?.direction === "grid") {
+    const gn = node as unknown as {
+      gridColumnSpan?: number;
+      gridRowSpan?: number;
+      gridColumnAnchorIndex?: number;
+      gridRowAnchorIndex?: number;
+    };
+    const colSpan = gn.gridColumnSpan;
+    const rowSpan = gn.gridRowSpan;
+    const colAnchor = gn.gridColumnAnchorIndex;
+    const rowAnchor = gn.gridRowAnchorIndex;
+    if (
+      (typeof colSpan === "number" && colSpan > 1) ||
+      (typeof rowSpan === "number" && rowSpan > 1) ||
+      typeof colAnchor === "number" ||
+      typeof rowAnchor === "number"
+    ) {
+      ir.gridChild = {
+        colSpan: colSpan && colSpan > 1 ? colSpan : undefined,
+        rowSpan: rowSpan && rowSpan > 1 ? rowSpan : undefined,
+        colStart: typeof colAnchor === "number" ? colAnchor + 1 : undefined,
+        rowStart: typeof rowAnchor === "number" ? rowAnchor + 1 : undefined,
+      };
+    }
+  }
+
   const pinned = positioning === "absolute" ? constraints(node, container) : null;
   if (pinned) ir.constraints = pinned;
 
@@ -669,8 +695,35 @@ function sizing(node: SceneNode, inAutoLayout: boolean): { horizontal: Sizing; v
 
 function autoLayout(node: FrameNode | ComponentNode | ComponentSetNode | InstanceNode, ctx: Context): AutoLayout | null {
   if (node.layoutMode === "GRID") {
-    ctx.warnings.add("Grid auto layout is exported with absolute positions.");
-    return null;
+    const s = nodeScale(node, ctx);
+    const n = node as unknown as {
+      gridColumnCount?: number;
+      gridRowCount?: number;
+      gridColumnGap?: number;
+      gridRowGap?: number;
+    };
+    const columns = Math.max(1, n.gridColumnCount ?? 1);
+    const rows = n.gridRowCount && n.gridRowCount > 0 ? n.gridRowCount : undefined;
+    const colGap = (n.gridColumnGap ?? node.itemSpacing ?? 0) * s;
+    const rowGap = (n.gridRowGap ?? node.counterAxisSpacing ?? node.itemSpacing ?? 0) * s;
+    return {
+      direction: "grid",
+      gap: colGap,
+      crossGap: rowGap,
+      wrap: false,
+      justify: "start",
+      align: "start",
+      padding: scaleSides(
+        { top: node.paddingTop, right: node.paddingRight, bottom: node.paddingBottom, left: node.paddingLeft },
+        s,
+      ),
+      grid: {
+        columns,
+        rows,
+        columnGap: colGap,
+        rowGap,
+      },
+    };
   }
   if (node.layoutMode === "NONE") return null;
 

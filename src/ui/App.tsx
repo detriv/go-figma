@@ -276,7 +276,12 @@ function SettingsMenu({ settings, update }: { settings: Settings; update: (patch
     return () => document.removeEventListener("pointerdown", close);
   }, [open]);
 
-  const options: { key: "useColorVariables" | "inlineSvg" | "optimizeImages" | "fluidSingleFrame"; label: string; caption: string }[] = [
+  const options: {
+    key: "useColorVariables" | "inlineSvg" | "optimizeImages" | "fluidSingleFrame" | "semanticHtml";
+    label: string;
+    caption: string;
+  }[] = [
+    { key: "semanticHtml", label: "Semantic HTML", caption: "Infer semantic tags (<button>, <nav>, <header>, headings, etc.)" },
     { key: "fluidSingleFrame", label: "Fluid single frame", caption: "Make single frame exports responsive and fluid (100% width, flexible wrap)" },
     { key: "useColorVariables", label: "Color variables", caption: "var(--token, #fallback) for colors bound to variables" },
     { key: "inlineSvg", label: "Inline SVG", caption: "Vectors and small icons as inline <svg>" },

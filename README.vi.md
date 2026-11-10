@@ -4,7 +4,7 @@
 
 # GoApp Figma – Design to Code
 
-[English](README.md) · **Tiếng Việt**
+[English](README.md) · [Bahasa Indonesia](README.id.md) · **Tiếng Việt**
 
 Plugin Figma chuyển layer đang chọn thành **HTML + CSS**, **React + Tailwind (v4)** hoặc **HTML + Tailwind**, kèm một **MCP server** để Claude Code, Codex, Cursor… đọc design và tự viết code theo codebase.
 
@@ -361,8 +361,12 @@ npm run typecheck   # plugin + MCP server
 - Image fill: code luôn tham chiếu file `images/<file>` (không nhúng base64); nút tải ảnh trên thanh tab tải zip. Chế độ CROP xuất thành `cover`, chưa áp opacity/filter của ảnh.
 - **Optimize images** (bật mặc định, trong menu ⚙): mỗi file ảnh được thu về 2× kích thước lớn nhất mà design hiển thị nó (không phóng to), nén lại cùng định dạng nên tên file và code không đổi. Áp dụng cho tải ảnh, Export và file ảnh agent nhận qua MCP (`get_design_context`, `generate_code`, `export_project`). Tắt đi để giữ ảnh gốc.
 - Mask, blend mode chưa hỗ trợ (sẽ hiện cảnh báo).
-- Grid auto layout và frame không có auto layout → con được định vị `absolute` (theo constraints của layer).
+- Frame không có auto layout → con được định vị `absolute` (theo constraints của layer). Đã hỗ trợ đầy đủ Flex và CSS Grid auto layout.
 - Tailwind output nhắm v4 (thang spacing động, `outline-solid`, …).
+
+## Đóng góp & Nguồn gốc (Credits)
+
+Dự án này được phát triển dựa trên và mở rộng từ repository mã nguồn mở [go-figma](https://github.com/tuyndev18/go-figma) của tác giả **tuyndev18** ([@tuyndev18](https://github.com/tuyndev18)). Xin chân thành cảm ơn tác giả gốc đã tạo nên nền tảng vững chắc cho dự án này.
 
 ## License
 

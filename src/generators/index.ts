@@ -16,21 +16,22 @@ export const IMAGE_DIR = "images";
 export function generate(
   roots: IRNode[],
   images: ImageAsset[],
-  settings: Pick<Settings, "target"> & Partial<Pick<Settings, "fluidSingleFrame">>,
+  settings: Pick<Settings, "target"> & Partial<Pick<Settings, "fluidSingleFrame" | "semanticHtml">>,
   warnings: Warnings,
 ): GenerateResult {
   const byHash = new Map(images.map((i) => [i.hash, i]));
   const filePath = (hash: string) => `${IMAGE_DIR}/${byHash.get(hash)?.fileName ?? hash}`;
 
   const fluidSingleFrame = settings.fluidSingleFrame ?? false;
-  const codeCtx: StyleContext = { warnings, imageUrl: filePath, fluidSingleFrame };
+  const semanticHtml = settings.semanticHtml ?? false;
+  const codeCtx: StyleContext = { warnings, imageUrl: filePath, fluidSingleFrame, semanticHtml };
   const tree = buildTree(roots, codeCtx);
   // The preview always renders plain HTML + CSS; the plugin iframe has no
   // network access and can't read local files, so images are placeholders.
   const previewTree =
     images.length === 0
       ? tree
-      : buildTree(roots, { warnings, imageUrl: (hash) => PREVIEW_IMAGE_PREFIX + hash, fluidSingleFrame });
+      : buildTree(roots, { warnings, imageUrl: (hash) => PREVIEW_IMAGE_PREFIX + hash, fluidSingleFrame, semanticHtml });
   const preview = generateHtmlCss(previewTree);
 
   let sections: CodeSection[];

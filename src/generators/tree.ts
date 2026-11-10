@@ -2,6 +2,7 @@
 // declarations; the HTML+CSS and Tailwind generators decide how to attach them.
 import type { FrameNode, IRNode, TextNode } from "../core/ir";
 import { commonDecls, nodeStyle, segmentStyle, withoutDecls, type Decl, type StyleContext } from "./css";
+import { inferFrameTag, inferTextTag } from "./semantic";
 import { makeFluidTree, mergeScreens, mergeStates, pageGroups, pageName } from "./responsive";
 
 export interface StyledElement {
@@ -66,13 +67,28 @@ export function buildTree(roots: IRNode[], ctx: StyleContext): StyledElement[] {
 function buildNode(node: IRNode, parent: FrameNode | null, ctx: StyleContext): StyledElement {
   const style = nodeStyle(node, parent, ctx);
   const attrs = ctx.annotate ? sourceAttrs(node) : [];
+
+  let tag = "div";
+  let semanticAttrs: [string, string][] = [];
+  const extraDecls: Decl[] = [];
+
+  if (ctx.semanticHtml && node.kind === "frame") {
+    const semantic = inferFrameTag(node, parent);
+    tag = semantic.tag;
+    if (semantic.attrs) semanticAttrs = semantic.attrs;
+    if (tag === "button" && !style.some(([p]) => p === "cursor")) {
+      extraDecls.push(["cursor", "pointer"]);
+    }
+  }
+
+  const allAttrs = [...semanticAttrs, ...attrs];
   const element = (role: string, children: StyledChild[], extra: Decl[] = []): StyledElement => ({
     kind: "element",
-    tag: "div",
+    tag,
     name: node.name,
-    role,
-    style: [...style, ...extra],
-    ...(attrs.length > 0 ? { attrs } : {}),
+    role: tag !== "div" ? tag : role,
+    style: [...style, ...extraDecls, ...extra],
+    ...(allAttrs.length > 0 ? { attrs: allAttrs } : {}),
     children,
   });
 
@@ -129,5 +145,6 @@ function buildText(node: TextNode, style: Decl[], ctx: StyleContext): StyledElem
     children = [{ kind: "element", tag: "span", name: "", role: "span", style: [], children }];
   }
 
-  return { kind: "element", tag: "div", name: node.name, role: "text", style: [...style, ...shared], children };
+  const tag = ctx.semanticHtml ? inferTextTag(node).tag : "div";
+  return { kind: "element", tag, name: node.name, role: tag !== "div" ? tag : "text", style: [...style, ...shared], children };
 }

@@ -253,6 +253,7 @@ function fluidChild(child: StyledChild, rootWidth: number, insideTable = false):
       // Add max-width: 100% so they shrink fluidly on smaller screens instead of overflowing.
       if (!map.has("max-width")) {
         style.push(["max-width", "100%"]);
+        map.set("max-width", "100%");
       }
       // For elements wider than small mobile (e.g. > 280px), remove flex-shrink: 0 if present,
       // so they are allowed to shrink in flex containers.
@@ -268,6 +269,7 @@ function fluidChild(child: StyledChild, rootWidth: number, insideTable = false):
     const isColumn = map.get("flex-direction") === "column";
     if (isFlex && !isColumn && child.children.length > 1 && !map.has("flex-wrap")) {
       style.push(["flex-wrap", "wrap"]);
+      map.set("flex-wrap", "wrap");
     }
   }
 
@@ -275,6 +277,7 @@ function fluidChild(child: StyledChild, rootWidth: number, insideTable = false):
   if (child.tag === "img" || child.role === "icon") {
     if (!map.has("max-width")) {
       style.push(["max-width", "100%"]);
+      map.set("max-width", "100%");
     }
   }
 

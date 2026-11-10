@@ -117,7 +117,8 @@ function borderWidth(value: string): string {
 // ---------------------------------------------------------------------------
 
 const SIMPLE: Record<string, Record<string, string>> = {
-  display: { flex: "flex", "inline-flex": "inline-flex", block: "block", none: "hidden" },
+  display: { flex: "flex", "inline-flex": "inline-flex", grid: "grid", "inline-grid": "inline-grid", block: "block", none: "hidden" },
+  cursor: { pointer: "cursor-pointer", default: "cursor-default" },
   "flex-direction": { column: "flex-col", row: "flex-row" },
   "flex-wrap": { wrap: "flex-wrap", nowrap: "flex-nowrap" },
   "justify-content": { "flex-start": "justify-start", center: "justify-center", "flex-end": "justify-end", "space-between": "justify-between", "space-around": "justify-around", "space-evenly": "justify-evenly" },
@@ -211,6 +212,54 @@ export function toTailwind(decls: Decl[]): string[] {
       case "column-gap":
         add(`gap-x-${spacing(value)}`);
         continue;
+      case "grid-template-columns": {
+        const m = value.match(/^repeat\((\d+),\s*minmax\(0,\s*1fr\)\)$/) || value.match(/^repeat\((\d+),\s*1fr\)$/);
+        if (m) {
+          add(`grid-cols-${m[1]}`);
+        } else {
+          add(`grid-cols-${arbitrary(value)}`);
+        }
+        continue;
+      }
+      case "grid-template-rows": {
+        const m = value.match(/^repeat\((\d+),\s*minmax\(0,\s*1fr\)\)$/) || value.match(/^repeat\((\d+),\s*1fr\)$/);
+        if (m) {
+          add(`grid-rows-${m[1]}`);
+        } else {
+          add(`grid-rows-${arbitrary(value)}`);
+        }
+        continue;
+      }
+      case "grid-column": {
+        const m = value.match(/^span\s+(\d+)$/);
+        if (m) {
+          add(`col-span-${m[1]}`);
+        } else if (value === "1 / -1" || value === "span 1 / -1") {
+          add("col-span-full");
+        } else {
+          add(`col-${arbitrary(value)}`);
+        }
+        continue;
+      }
+      case "grid-row": {
+        const m = value.match(/^span\s+(\d+)$/);
+        if (m) {
+          add(`row-span-${m[1]}`);
+        } else if (value === "1 / -1" || value === "span 1 / -1") {
+          add("row-span-full");
+        } else {
+          add(`row-${arbitrary(value)}`);
+        }
+        continue;
+      }
+      case "grid-column-start": {
+        add(`col-start-${value}`);
+        continue;
+      }
+      case "grid-row-start": {
+        add(`row-start-${value}`);
+        continue;
+      }
       case "left":
       case "right":
       case "top":

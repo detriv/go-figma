@@ -100,7 +100,7 @@ function staticSite(
 ): ProjectFile[] {
   const tree = buildTree(
     pages.flatMap((p) => p.roots),
-    { warnings, imageUrl, fluidSingleFrame: settings?.fluidSingleFrame },
+    { warnings, imageUrl, fluidSingleFrame: settings?.fluidSingleFrame, semanticHtml: settings?.semanticHtml },
   );
   const htmlFile = (page: Page) => (page.slug === "" ? "index.html" : `${page.slug}.html`);
   const files: ProjectFile[] = [];
@@ -197,7 +197,7 @@ function nextApp(
 ): ProjectFile[] {
   const tree = buildTree(
     pages.flatMap((p) => p.roots),
-    { warnings, imageUrl, fluidSingleFrame: settings?.fluidSingleFrame },
+    { warnings, imageUrl, fluidSingleFrame: settings?.fluidSingleFrame, semanticHtml: settings?.semanticHtml },
   );
   const files: ProjectFile[] = pages.map((page, i) => ({
     path: page.slug === "" ? "app/page.jsx" : `app/${page.slug}/page.jsx`,

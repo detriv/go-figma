@@ -16,6 +16,8 @@ export interface Settings {
   optimizeImages: boolean;
   /** Full-bleed fluid responsive layout for single frame exports. */
   fluidSingleFrame: boolean;
+  /** Infer semantic HTML5 tags (button, nav, header, footer, headings) from layer names. */
+  semanticHtml: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -24,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   inlineSvg: true,
   optimizeImages: true,
   fluidSingleFrame: true,
+  semanticHtml: true,
 };
 
 export function isTarget(value: unknown): value is Target {
@@ -40,5 +43,6 @@ export function sanitizeSettings(raw: unknown): Settings {
   if (typeof r.inlineSvg === "boolean") result.inlineSvg = r.inlineSvg;
   if (typeof r.optimizeImages === "boolean") result.optimizeImages = r.optimizeImages;
   if (typeof r.fluidSingleFrame === "boolean") result.fluidSingleFrame = r.fluidSingleFrame;
+  if (typeof r.semanticHtml === "boolean") result.semanticHtml = r.semanticHtml;
   return result;
 }

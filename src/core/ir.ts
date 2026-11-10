@@ -62,9 +62,9 @@ export interface Box {
 }
 
 export interface AutoLayout {
-  direction: "row" | "column";
+  direction: "row" | "column" | "grid";
   gap: number;
-  /** Gap between wrapped rows/columns. Only meaningful when `wrap` is true. */
+  /** Gap between wrapped rows/columns, or row gap in grid. Only meaningful when `wrap` is true or `direction` is "grid". */
   crossGap: number;
   wrap: boolean;
   justify: "start" | "center" | "end" | "space-between" | "space-around" | "space-evenly";
@@ -74,6 +74,13 @@ export interface AutoLayout {
   padding: Sides;
   /** Figma's "canvas stacking: first on top". */
   reverseZIndex?: boolean;
+  /** Grid auto layout properties when `direction === "grid"`. */
+  grid?: {
+    columns: number;
+    rows?: number;
+    columnGap?: number;
+    rowGap?: number;
+  };
 }
 
 export interface Sides {
@@ -173,6 +180,13 @@ interface BaseNode {
   constraints?: { horizontal: Constraint; vertical: Constraint };
   /** Extra offset of a flow child, for spacing that a single gap/alignment can't express. */
   margin?: { top: number; left: number };
+  /** Grid placement when the parent container has grid auto-layout. */
+  gridChild?: {
+    colSpan?: number;
+    rowSpan?: number;
+    colStart?: number;
+    rowStart?: number;
+  };
   minWidth?: number;
   maxWidth?: number;
   minHeight?: number;
