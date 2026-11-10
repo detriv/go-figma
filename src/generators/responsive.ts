@@ -243,10 +243,12 @@ function fluidChild(child: StyledChild, rootWidth: number, insideTable = false):
     }
   } else if (!nowInsideTable) {
     // 1. Full-width sections inside the frame:
-    // If a section was drawn to match or span nearly the entire root frame (>= rootWidth - 2):
-    // in Figma, top-level sections are drawn at canvas width (e.g., 1440px inside a 1440px frame).
-    // In full-bleed fluid web layout, these should fill 100% of their parent.
-    if (pxWidth !== null && pxWidth >= rootWidth - 2) {
+    // If a section was drawn to match or span nearly the entire root frame (>= rootWidth - 2),
+    // OR if it spans at least 88% of the root frame width — this covers elements that fill the
+    // content area after accounting for common horizontal padding (e.g., 16px × 2 = 32px on a
+    // 390px frame → content width is 358px ≈ 91.8% of rootWidth).
+    // Both conditions mean "this element is meant to be full-width, just inset by padding".
+    if (pxWidth !== null && (pxWidth >= rootWidth - 2 || pxWidth >= rootWidth * 0.88)) {
       style = style.map(([p, v]): Decl => (p === "width" ? ["width", "100%"] : [p, v]));
     } else if (pxWidth !== null && pxWidth > 0) {
       // 2. Fixed-width elements (cards, containers, dialogs, etc.):

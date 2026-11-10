@@ -196,4 +196,44 @@ describe("responsive pages", () => {
     expect(twCode).not.toMatch(/min-w-200[^"]*overflow-x-auto/);
     expect(cssCode).not.toMatch(/\.table-row\s*\{[^}]*overflow-x:\s*auto;/);
   });
+
+  it("treats elements spanning content width (rootWidth minus padding) as full-width (100%)", () => {
+    // Mobile frame: 390px wide with 16px padding on each side → content width = 358px.
+    // A child drawn at 358px should become width: 100% because 358 >= 390 * 0.88 = 343.2.
+    const card = frame({
+      name: "ProdukBiasaOrganism",
+      layout: layout("column", 0),
+      box: { x: 0, y: 0, width: 358, height: 200, rotation: 0 },
+      sizing: { horizontal: "fixed", vertical: "fixed" },
+      children: [],
+    });
+    const mobileScreen = frame({
+      name: "MobileDetailPesanan",
+      box: { x: 0, y: 0, width: 390, height: 844, rotation: 0 },
+      layout: layout("column", 16), // 16px padding all sides
+      children: [card],
+    });
+
+    const cssResult = generate(
+      [mobileScreen],
+      [],
+      { target: "html-css", fluidSingleFrame: true },
+      new Warnings()
+    );
+    const cssCode = cssResult.sections[1].code;
+    // The card at 358px should become width: 100% (not a fixed 358px)
+    expect(cssCode).toMatch(/\.produk-biasa-organism\s*\{[^}]*width:\s*100%;/);
+    expect(cssCode).not.toMatch(/\.produk-biasa-organism\s*\{[^}]*width:\s*358px;/);
+
+    const twResult = generate(
+      [mobileScreen],
+      [],
+      { target: "react-tailwind", fluidSingleFrame: true },
+      new Warnings()
+    );
+    const twCode = twResult.sections[0].code;
+    // Should contain w-full in Tailwind output, not a fixed width like w-[358px]
+    expect(twCode).toContain("w-full");
+    expect(twCode).not.toContain("w-[358px]");
+  });
 });
