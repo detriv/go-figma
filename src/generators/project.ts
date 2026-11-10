@@ -8,7 +8,7 @@ import { imageFits, type ImageFit } from "../core/imageFit";
 import type { ImageAsset, IRNode } from "../core/ir";
 import { toKebab } from "../core/naming";
 import type { Warnings } from "../core/warnings";
-import type { Target } from "../shared/settings";
+import type { Settings, Target } from "../shared/settings";
 import { googleFontLinks, googleFontUrls } from "./fonts";
 import { IMAGE_DIR } from "./index";
 import { generateHtmlCss } from "./htmlCss";
@@ -39,7 +39,13 @@ interface Page {
   slug: string;
 }
 
-export function buildProject(roots: IRNode[], images: ImageAsset[], target: Target, warnings: Warnings): Project {
+export function buildProject(
+  roots: IRNode[],
+  images: ImageAsset[],
+  target: Target,
+  warnings: Warnings,
+  settings?: Partial<Settings>,
+): Project {
   if (roots.length === 0) throw new Error("Select at least one frame to export.");
 
   const pages = assignPages(pageGroups(roots, warnings));
@@ -49,8 +55,8 @@ export function buildProject(roots: IRNode[], images: ImageAsset[], target: Targ
 
   const files =
     target === "react-tailwind"
-      ? nextApp(name, pages, (hash) => `/${IMAGE_DIR}/${fileName(hash)}`, warnings)
-      : staticSite(name, pages, target, (hash) => `${IMAGE_DIR}/${fileName(hash)}`, warnings);
+      ? nextApp(name, pages, (hash) => `/${IMAGE_DIR}/${fileName(hash)}`, warnings, settings)
+      : staticSite(name, pages, target, (hash) => `${IMAGE_DIR}/${fileName(hash)}`, warnings, settings);
 
   const imageRoot = target === "react-tailwind" ? `public/${IMAGE_DIR}` : IMAGE_DIR;
   const fits = imageFits(roots, images);
@@ -90,10 +96,11 @@ function staticSite(
   target: Target,
   imageUrl: (hash: string) => string,
   warnings: Warnings,
+  settings?: Partial<Settings>,
 ): ProjectFile[] {
   const tree = buildTree(
     pages.flatMap((p) => p.roots),
-    { warnings, imageUrl },
+    { warnings, imageUrl, fluidSingleFrame: settings?.fluidSingleFrame },
   );
   const htmlFile = (page: Page) => (page.slug === "" ? "index.html" : `${page.slug}.html`);
   const files: ProjectFile[] = [];
@@ -181,10 +188,16 @@ const NEXT_VERSIONS = {
   "@tailwindcss/postcss": "^4.3.3",
 };
 
-function nextApp(name: string, pages: Page[], imageUrl: (hash: string) => string, warnings: Warnings): ProjectFile[] {
+function nextApp(
+  name: string,
+  pages: Page[],
+  imageUrl: (hash: string) => string,
+  warnings: Warnings,
+  settings?: Partial<Settings>,
+): ProjectFile[] {
   const tree = buildTree(
     pages.flatMap((p) => p.roots),
-    { warnings, imageUrl },
+    { warnings, imageUrl, fluidSingleFrame: settings?.fluidSingleFrame },
   );
   const files: ProjectFile[] = pages.map((page, i) => ({
     path: page.slug === "" ? "app/page.jsx" : `app/${page.slug}/page.jsx`,

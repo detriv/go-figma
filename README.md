@@ -119,6 +119,16 @@ The frames merge into **one** mobile-first page:
 - The page root gets `width: 100%`; the frame height becomes `min-height`.
 - The preview has a viewport switcher per breakpoint.
 
+### Single-frame fluid & responsive
+
+When exporting a single frame, the plugin automatically creates a full-bleed fluid responsive layout:
+- The page root fills the viewport (`width: 100%`, `min-height`).
+- Full-width sections expand to `width: 100%` (`w-full`).
+- Fixed-width inner containers get `max-width: 100%` (`max-w-full`) to prevent horizontal overflow on mobile screens.
+- Multi-item flex rows wrap naturally (`flex-wrap`).
+- Data tables allow horizontal scrolling (`overflow-x: auto`) without wrapping rows, preserving columns.
+- The preview provides a viewport switcher (**Mobile 375px**, **Tablet 768px**, **Desktop**).
+
 ### States (one page – several states)
 
 Select frames that are states of the same screen, choose **States**, then rename the states if needed. The first frame with a state (in selection order) is the **default** state.

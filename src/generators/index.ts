@@ -16,17 +16,21 @@ export const IMAGE_DIR = "images";
 export function generate(
   roots: IRNode[],
   images: ImageAsset[],
-  settings: Pick<Settings, "target">,
+  settings: Pick<Settings, "target"> & Partial<Pick<Settings, "fluidSingleFrame">>,
   warnings: Warnings,
 ): GenerateResult {
   const byHash = new Map(images.map((i) => [i.hash, i]));
   const filePath = (hash: string) => `${IMAGE_DIR}/${byHash.get(hash)?.fileName ?? hash}`;
 
-  const codeCtx: StyleContext = { warnings, imageUrl: filePath };
+  const fluidSingleFrame = settings.fluidSingleFrame ?? false;
+  const codeCtx: StyleContext = { warnings, imageUrl: filePath, fluidSingleFrame };
   const tree = buildTree(roots, codeCtx);
   // The preview always renders plain HTML + CSS; the plugin iframe has no
   // network access and can't read local files, so images are placeholders.
-  const previewTree = images.length === 0 ? tree : buildTree(roots, { warnings, imageUrl: (hash) => PREVIEW_IMAGE_PREFIX + hash });
+  const previewTree =
+    images.length === 0
+      ? tree
+      : buildTree(roots, { warnings, imageUrl: (hash) => PREVIEW_IMAGE_PREFIX + hash, fluidSingleFrame });
   const preview = generateHtmlCss(previewTree);
 
   let sections: CodeSection[];
@@ -47,7 +51,7 @@ export function generate(
       break;
   }
 
-  const previewSizes = mergedPreviews(roots);
+  const previewSizes = mergedPreviews(roots, fluidSingleFrame);
   const fits = imageFits(roots, images);
   return {
     sections,
@@ -67,16 +71,28 @@ export function generate(
  * One preview per tagged frame of a merged page: a responsive page at a width
  * inside each frame's breakpoint, a page with states in each state.
  */
-function mergedPreviews(roots: IRNode[]): PreviewSize[] | undefined {
+function mergedPreviews(roots: IRNode[], fluidSingleFrame = false): PreviewSize[] | undefined {
   const groups = pageGroups(roots);
   const merged = groups.find((g) => g.length > 1);
-  if (!merged) return undefined;
-  return merged.map((screen) => ({
-    ...(screen.breakpoint
-      ? { label: breakpointLabel(screen.breakpoint), width: previewWidth(screen) }
-      : { label: screen.state!, width: Math.round(screen.box.width), state: screen.state }),
-    height: groups.reduce((sum, g) => sum + (g === merged ? screen.box.height : g[0].box.height), 0),
-  }));
+  if (merged) {
+    return merged.map((screen) => ({
+      ...(screen.breakpoint
+        ? { label: breakpointLabel(screen.breakpoint), width: previewWidth(screen) }
+        : { label: screen.state!, width: Math.round(screen.box.width), state: screen.state }),
+      height: groups.reduce((sum, g) => sum + (g === merged ? screen.box.height : g[0].box.height), 0),
+    }));
+  }
+  if (fluidSingleFrame && roots.length === 1 && !roots[0].breakpoint && !roots[0].state) {
+    const root = roots[0];
+    const origWidth = Math.round(root.box.width);
+    const height = Math.round(root.box.height);
+    return [
+      { label: "Mobile", width: 375, height },
+      { label: "Tablet", width: 768, height },
+      { label: "Desktop", width: Math.max(1024, origWidth), height },
+    ];
+  }
+  return undefined;
 }
 
 /**

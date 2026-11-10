@@ -94,7 +94,7 @@ const handlers: Handlers = {
     const settings = await settingsFor(params);
     const warnings = new Warnings();
     const { roots, images } = await normalize(await resolveNodes(params), settings, warnings);
-    const project = buildProject(roots, images, settings.target, warnings);
+    const project = buildProject(roots, images, settings.target, warnings, settings);
     return { target: settings.target, name: project.name, files: project.files, warnings: warnings.list() };
   },
 };

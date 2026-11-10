@@ -2,7 +2,7 @@
 // declarations; the HTML+CSS and Tailwind generators decide how to attach them.
 import type { FrameNode, IRNode, TextNode } from "../core/ir";
 import { commonDecls, nodeStyle, segmentStyle, withoutDecls, type Decl, type StyleContext } from "./css";
-import { mergeScreens, mergeStates, pageGroups, pageName } from "./responsive";
+import { makeFluidTree, mergeScreens, mergeStates, pageGroups, pageName } from "./responsive";
 
 export interface StyledElement {
   kind: "element";
@@ -42,7 +42,10 @@ export type StyledChild = StyledElement | { kind: "text"; text: string } | { kin
 /** One element per page (see `pageGroups`): frames tagged with breakpoints, or with states, merge into one. */
 export function buildTree(roots: IRNode[], ctx: StyleContext): StyledElement[] {
   return pageGroups(roots, ctx.warnings).map((group) => {
-    if (group.length === 1) return buildNode(group[0], null, ctx);
+    if (group.length === 1) {
+      const node = buildNode(group[0], null, ctx);
+      return ctx.fluidSingleFrame ? makeFluidTree(node, group[0].box.width) : node;
+    }
     const screens = group.map((root) => buildNode(root, null, ctx));
     return group[0].breakpoint
       ? mergeScreens(

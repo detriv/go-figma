@@ -108,4 +108,92 @@ describe("responsive pages", () => {
     expect(css([plain])).not.toContain("@media");
     expect(generate([plain], [], { target: "html-css" }, new Warnings()).previewSizes).toBeUndefined();
   });
+
+  it("makes a single frame full-bleed fluid and responsive when fluidSingleFrame is enabled", () => {
+    const card = frame({
+      name: "Card",
+      box: { x: 0, y: 0, width: 360, height: 200, rotation: 0 },
+      sizing: { horizontal: "fixed", vertical: "fixed" },
+    });
+    const cardsRow = frame({
+      name: "CardsRow",
+      layout: layout("row", 16),
+      box: { x: 0, y: 0, width: 1440, height: 300, rotation: 0 },
+      sizing: { horizontal: "fixed", vertical: "fixed" },
+      children: [card, frame({ name: "Card2", box: { x: 0, y: 0, width: 360, height: 200, rotation: 0 } })],
+    });
+    const singleScreen = frame({
+      name: "LandingPage",
+      box: { x: 0, y: 0, width: 1440, height: 900, rotation: 0 },
+      layout: layout("column", 32),
+      children: [cardsRow],
+    });
+
+    const cssResult = generate([singleScreen], [], { target: "html-css", fluidSingleFrame: true }, new Warnings());
+    const cssCode = cssResult.sections[1].code;
+    expect(cssCode).toContain("width: 100%;");
+    expect(cssCode).toContain("min-height: 900px;");
+    expect(cssCode).toContain("flex-wrap: wrap;");
+    expect(cssCode).toContain("max-width: 100%;");
+    expect(cssResult.previewSizes?.map((s) => [s.label, s.width])).toEqual([
+      ["Mobile", 375],
+      ["Tablet", 768],
+      ["Desktop", 1440],
+    ]);
+
+    const twResult = generate([singleScreen], [], { target: "react-tailwind", fluidSingleFrame: true }, new Warnings());
+    const twCode = twResult.sections[0].code;
+    expect(twCode).toContain("w-full");
+    expect(twCode).toContain("min-h-225");
+    expect(twCode).toContain("flex-wrap");
+    expect(twCode).toContain("max-w-full");
+
+    const project = buildProject([singleScreen], [], "react-tailwind", new Warnings(), { fluidSingleFrame: true });
+    const pageJsx = project.files.find((f) => f.path === "app/page.jsx")?.text;
+    expect(pageJsx).toContain("w-full");
+  });
+
+  it("enables horizontal scrolling for tables when columns exceed container width without wrapping rows", () => {
+    const col1 = frame({ name: "Col1", box: { x: 0, y: 0, width: 200, height: 40, rotation: 0 } });
+    const col2 = frame({ name: "Col2", box: { x: 200, y: 0, width: 300, height: 40, rotation: 0 } });
+    const col3 = frame({ name: "Col3", box: { x: 500, y: 0, width: 300, height: 40, rotation: 0 } });
+    const tableRow = frame({
+      name: "TableRow",
+      layout: layout("row", 8),
+      box: { x: 0, y: 0, width: 800, height: 40, rotation: 0 },
+      sizing: { horizontal: "fixed", vertical: "fixed" },
+      children: [col1, col2, col3],
+    });
+    const tableContainer = frame({
+      name: "DataTable",
+      layout: layout("column", 8),
+      box: { x: 0, y: 0, width: 800, height: 400, rotation: 0 },
+      sizing: { horizontal: "fixed", vertical: "fixed" },
+      children: [tableRow],
+    });
+    const screen = frame({
+      name: "Dashboard",
+      box: { x: 0, y: 0, width: 1440, height: 900, rotation: 0 },
+      layout: layout("column", 24),
+      children: [tableContainer],
+    });
+
+    const cssResult = generate([screen], [], { target: "html-css", fluidSingleFrame: true }, new Warnings());
+    const cssCode = cssResult.sections[1].code;
+    expect(cssCode).toContain("overflow-x: auto;");
+    expect(cssCode).toContain("max-width: 100%;");
+    expect(cssCode).toContain("min-width: 800px;");
+    // Table rows must NOT have flex-wrap: wrap
+    expect(cssCode).not.toMatch(/\.table-row\s*\{[^}]*flex-wrap:\s*wrap;/);
+
+    const twResult = generate([screen], [], { target: "react-tailwind", fluidSingleFrame: true }, new Warnings());
+    const twCode = twResult.sections[0].code;
+    expect(twCode).toContain("overflow-x-auto");
+    expect(twCode).toContain("max-w-full");
+    expect(twCode).toContain("min-w-200");
+    // Table rows must NOT have flex-wrap or overflow-x-auto (overflow-x-auto belongs only on the table container)
+    expect(twCode).not.toContain("flex-wrap min-w-200");
+    expect(twCode).not.toMatch(/min-w-200[^"]*overflow-x-auto/);
+    expect(cssCode).not.toMatch(/\.table-row\s*\{[^}]*overflow-x:\s*auto;/);
+  });
 });

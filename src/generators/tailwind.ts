@@ -127,7 +127,9 @@ const SIMPLE: Record<string, Record<string, string>> = {
   flex: { "1 1 0": "flex-1", "0 1 auto": "flex-initial" },
   "flex-shrink": { "0": "shrink-0", "1": "shrink" },
   position: { absolute: "absolute", relative: "relative", static: "static" },
-  overflow: { hidden: "overflow-hidden", visible: "overflow-visible" },
+  overflow: { hidden: "overflow-hidden", visible: "overflow-visible", auto: "overflow-auto", scroll: "overflow-scroll" },
+  "overflow-x": { hidden: "overflow-x-hidden", visible: "overflow-x-visible", auto: "overflow-x-auto", scroll: "overflow-x-scroll" },
+  "overflow-y": { hidden: "overflow-y-hidden", visible: "overflow-y-visible", auto: "overflow-y-auto", scroll: "overflow-y-scroll" },
   "font-style": { italic: "italic" },
   "text-transform": { uppercase: "uppercase", lowercase: "lowercase", capitalize: "capitalize" },
   "text-align": { left: "text-left", center: "text-center", right: "text-right", justify: "text-justify" },
@@ -187,7 +189,16 @@ export function toTailwind(decls: Decl[]): string[] {
       case "min-height":
       case "max-height": {
         const [kind, axis] = prop.split("-");
-        const keyword = value === "auto" || value === "none" ? value : null;
+        const keyword =
+          value === "auto" || value === "none"
+            ? value
+            : value === "100%"
+              ? "full"
+              : value === "100vh"
+                ? "screen"
+                : value === "fit-content"
+                  ? "fit"
+                  : null;
         add(`${kind}-${axis === "width" ? "w" : "h"}-${keyword ?? spacing(value)}`);
         continue;
       }

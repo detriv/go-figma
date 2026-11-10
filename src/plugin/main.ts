@@ -184,7 +184,7 @@ async function runWithUI() {
           const warnings = new Warnings();
           // Projects always reference image files, never embedded data URIs.
           const { roots, images } = await normalize(figma.currentPage.selection, settings, warnings);
-          const project = buildProject(roots, images, settings.target, warnings);
+          const project = buildProject(roots, images, settings.target, warnings, settings);
           post({ type: "project", name: project.name, files: project.files });
         } catch (error) {
           figma.notify(`Export failed: ${error instanceof Error ? error.message : String(error)}`, { error: true });

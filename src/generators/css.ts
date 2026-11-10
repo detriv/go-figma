@@ -15,6 +15,8 @@ export interface StyleContext {
   annotate?: boolean;
   /** Render vector layers as <img src={svgUrl(node)}> instead of inline SVG. */
   svgUrl?(node: SvgNode): string;
+  /** Make single frame exports full-bleed fluid and responsive. */
+  fluidSingleFrame?: boolean;
 }
 
 const px = (n: number) => (n === 0 ? "0" : `${fmt(n)}px`);

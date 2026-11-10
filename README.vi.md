@@ -119,6 +119,16 @@ Các frame gộp thành **một** page, viết theo kiểu mobile-first:
 - Root của page có `width: 100%`, chiều cao frame chuyển thành `min-height`.
 - Preview có nút chuyển viewport theo từng breakpoint.
 
+### Single-frame fluid & responsive
+
+Khi export một frame đơn lẻ, plugin tự động tạo layout full-bleed fluid & responsive:
+- Root của page phủ toàn bộ viewport (`width: 100%`, `min-height`).
+- Các section toàn màn hình mở rộng thành `width: 100%` (`w-full`).
+- Container có chiều rộng cố định được thêm `max-width: 100%` (`max-w-full`) chống tràn màn hình trên mobile.
+- Các hàng flex nhiều item tự động wrap (`flex-wrap`).
+- Bảng dữ liệu (table) cho phép cuộn ngang (`overflow-x: auto`) mà không bị bẻ hàng, giữ nguyên cấu trúc cột.
+- Preview hỗ trợ chuyển nhanh viewport (**Mobile 375px**, **Tablet 768px**, **Desktop**).
+
 ### States (1 page – nhiều trạng thái)
 
 Chọn các frame là các trạng thái của cùng một màn, chọn **States** rồi sửa tên state nếu cần. Frame có state đầu tiên (theo thứ tự chọn) là trạng thái **default**.

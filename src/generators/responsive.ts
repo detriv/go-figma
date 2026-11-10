@@ -138,10 +138,151 @@ function merge(screens: StyledElement[], cascade: MergeState["cascade"], warning
   return merged;
 }
 
+const PX = /^(-?\d+(?:\.\d+)?)px$/;
+const parsePx = (value: string): number | null => (value === "0" ? 0 : PX.test(value) ? Number(value.match(PX)![1]) : null);
+
+function parseWidth(style: Decl[]): number {
+  for (const [prop, val] of style) {
+    if (prop === "width") {
+      const n = parsePx(val);
+      if (n !== null && n > 0) return n;
+    }
+  }
+  return 1440;
+}
+
 /** Frames have a fixed width; the page fills the viewport instead, and each frame's height becomes a minimum. */
-function fluid(root: StyledElement): StyledElement {
+export function fluid(root: StyledElement): StyledElement {
   const style = root.style.flatMap(([p, v]): Decl[] => (p === "width" ? [] : p === "height" ? [["min-height", v]] : [[p, v]]));
   return { ...root, style: [...style, ["width", "100%"]] };
+}
+
+const TABLE_ROW_OR_CELL_REGEX =
+  /\b(rows?|headers?|theads?|tbodys?|tfoots?|trs?|tds?|ths?|cells?|columns?|cols?)\b|[-_](row|header|cell|col|thead|tbody|tr|td|th)\b|\b(table)?(Row|Header|Cell|Col|Thead|Tbody|Tr|Td)[-_0-9]?\b/i;
+
+const TABLE_CONTAINER_REGEX =
+  /\b(data[-_]?)?tables?(\b|[-_])|\bdatagrids?(\b|[-_])|\btabular\b/i;
+
+function isTableRowOrCell(name: string): boolean {
+  return TABLE_ROW_OR_CELL_REGEX.test(name);
+}
+
+function isTableContainer(element: StyledElement): boolean {
+  if (isTableRowOrCell(element.name)) return false;
+  if (TABLE_CONTAINER_REGEX.test(element.name) || /^table\b/i.test(element.name)) return true;
+  // If the container has children named row/header/cell, the container itself is the table
+  return element.children.some(
+    (c) => c.kind === "element" && isTableRowOrCell(c.name) && /table/i.test(c.name),
+  );
+}
+
+/**
+ * Transforms a single frame tree into full-bleed fluid & responsive layout (Approach A):
+ * - Root fills the viewport (width: 100%, height -> min-height).
+ * - Full-width sections (width close to root width) become width: 100%.
+ * - Fixed-width inner containers get max-width: 100% so they shrink without overflowing on small viewports.
+ * - Multi-item flex rows gain flex-wrap: wrap to stack gracefully on narrow screens.
+ * - Table containers (and ONLY table containers, never individual rows) allow horizontal scrolling (overflow-x: auto).
+ * - Media/images are constrained to max-width: 100%.
+ */
+export function makeFluidTree(root: StyledElement, rootWidth?: number): StyledElement {
+  const width = rootWidth ?? parseWidth(root.style);
+  let fluidRoot = fluid(root);
+
+  const isTable = isTableContainer(root);
+  if (isTable) {
+    const style = fluidRoot.style
+      .filter(([p]) => p !== "overflow" && p !== "overflow-x")
+      .concat([
+        ["overflow-x", "auto"],
+        ["max-width", "100%"],
+      ]);
+    fluidRoot = { ...fluidRoot, style };
+  }
+
+  return {
+    ...fluidRoot,
+    children: fluidRoot.children.map((child) => fluidChild(child, width, isTable)),
+  };
+}
+
+function fluidChild(child: StyledChild, rootWidth: number, insideTable = false): StyledChild {
+  if (child.kind !== "element") return child;
+
+  let style = [...child.style];
+  const map = new Map(style);
+  // Table container can ONLY be identified if we are not ALREADY inside a table!
+  const isTable = !insideTable && isTableContainer(child);
+  const nowInsideTable = insideTable || isTable;
+
+  const widthVal = map.get("width");
+  const pxWidth = widthVal ? parsePx(widthVal) : null;
+
+  if (isTable) {
+    // ONLY the table container gets overflow-x: auto and max-width: 100%
+    style = style.filter(([p]) => p !== "overflow" && p !== "overflow-x");
+    style.push(["overflow-x", "auto"]);
+    if (!map.has("max-width")) {
+      style.push(["max-width", "100%"]);
+    }
+  }
+
+  if (nowInsideTable && !isTable) {
+    // Inside the table:
+    // 1. NEVER add overflow-x: auto to rows or cells!
+    style = style.filter(([p]) => p !== "overflow-x");
+
+    // 2. NEVER add flex-wrap: wrap to table rows or cells!
+
+    // 3. For row containers inside the table:
+    // If a row has a fixed width, ensure it has min-width so the entire table
+    // content keeps its columns intact and triggers horizontal scrolling on the table container.
+    const isRow = isTableRowOrCell(child.name) || map.get("flex-direction") !== "column";
+    if (isRow && pxWidth !== null && pxWidth > 0 && !map.has("min-width")) {
+      style.push(["min-width", `${pxWidth}px`]);
+    }
+  } else if (!nowInsideTable) {
+    // 1. Full-width sections inside the frame:
+    // If a section was drawn to match or span nearly the entire root frame (>= rootWidth - 2):
+    // in Figma, top-level sections are drawn at canvas width (e.g., 1440px inside a 1440px frame).
+    // In full-bleed fluid web layout, these should fill 100% of their parent.
+    if (pxWidth !== null && pxWidth >= rootWidth - 2) {
+      style = style.map(([p, v]): Decl => (p === "width" ? ["width", "100%"] : [p, v]));
+    } else if (pxWidth !== null && pxWidth > 0) {
+      // 2. Fixed-width elements (cards, containers, dialogs, etc.):
+      // Add max-width: 100% so they shrink fluidly on smaller screens instead of overflowing.
+      if (!map.has("max-width")) {
+        style.push(["max-width", "100%"]);
+      }
+      // For elements wider than small mobile (e.g. > 280px), remove flex-shrink: 0 if present,
+      // so they are allowed to shrink in flex containers.
+      if (pxWidth > 280) {
+        style = style.filter(([p]) => p !== "flex-shrink");
+      }
+    }
+
+    // 3. Flex rows (outside tables):
+    // If an element is a flex container with row direction (or default row),
+    // and has multiple children, add flex-wrap: wrap so children stack on small screens.
+    const isFlex = map.get("display") === "flex" || map.get("display") === "inline-flex";
+    const isColumn = map.get("flex-direction") === "column";
+    if (isFlex && !isColumn && child.children.length > 1 && !map.has("flex-wrap")) {
+      style.push(["flex-wrap", "wrap"]);
+    }
+  }
+
+  // 4. Images / icons:
+  if (child.tag === "img" || child.role === "icon") {
+    if (!map.has("max-width")) {
+      style.push(["max-width", "100%"]);
+    }
+  }
+
+  return {
+    ...child,
+    style,
+    children: child.children.map((c) => fluidChild(c, rootWidth, nowInsideTable)),
+  };
 }
 
 function mergeElement(variants: Variants, extras: Decl[][], state: MergeState): StyledElement {

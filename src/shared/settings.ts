@@ -14,6 +14,8 @@ export interface Settings {
   inlineSvg: boolean;
   /** Scale exported image files down to the size the design shows them at (×2), re-compressed. */
   optimizeImages: boolean;
+  /** Full-bleed fluid responsive layout for single frame exports. */
+  fluidSingleFrame: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -21,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   useColorVariables: true,
   inlineSvg: true,
   optimizeImages: true,
+  fluidSingleFrame: true,
 };
 
 export function isTarget(value: unknown): value is Target {
@@ -36,5 +39,6 @@ export function sanitizeSettings(raw: unknown): Settings {
   if (typeof r.useColorVariables === "boolean") result.useColorVariables = r.useColorVariables;
   if (typeof r.inlineSvg === "boolean") result.inlineSvg = r.inlineSvg;
   if (typeof r.optimizeImages === "boolean") result.optimizeImages = r.optimizeImages;
+  if (typeof r.fluidSingleFrame === "boolean") result.fluidSingleFrame = r.fluidSingleFrame;
   return result;
 }
