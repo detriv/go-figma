@@ -223,7 +223,7 @@ function contentWidth(element: StyledElement, fallback: number): number {
     .reduce((sum, prop) => sum + (parsePx(map.get(prop) ?? "") ?? 0), 0));
 }
 
-function isControl(element: StyledElement): boolean {
+export function isControl(element: StyledElement): boolean {
   return /^(button|nav|input|select|textarea|a)$/.test(element.tag) ||
     (element.role !== "shape" && element.role !== "icon" &&
       /\b(buttons?|btns?|cta|navbars?|navs?|navigation|controls?|toolbars?)\b/i.test(element.name));

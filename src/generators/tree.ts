@@ -3,6 +3,7 @@
 import type { FrameNode, IRNode, TextNode } from "../core/ir";
 import { inferResponsiveLayout } from "../core/inferLayout";
 import { commonDecls, nodeStyle, segmentStyle, withoutDecls, type Decl, type StyleContext } from "./css";
+import { alignColumnSlots } from "./columnSlots";
 import { inferFrameTag, inferTextTag } from "./semantic";
 import { makeFluidTree, mergeScreens, mergeStates, pageGroups, pageName } from "./responsive";
 
@@ -49,9 +50,14 @@ export function buildTree(roots: IRNode[], ctx: StyleContext): StyledElement[] {
         ? inferResponsiveLayout(group[0], ctx.warnings)
         : group[0];
       const node = buildNode(root, null, ctx);
-      return ctx.fluidSingleFrame ? makeFluidTree(node, root.box.width) : node;
+      if (!ctx.fluidSingleFrame) return node;
+      const fluid = makeFluidTree(node, root.box.width);
+      return root.state ? fluid : alignColumnSlots(root, fluid, true);
     }
-    const screens = group.map((root) => buildNode(root, null, ctx));
+    const screens = group.map((root) => {
+      const node = buildNode(root, null, ctx);
+      return root.breakpoint ? alignColumnSlots(root, node, false) : node;
+    });
     return group[0].breakpoint
       ? mergeScreens(
           screens,
