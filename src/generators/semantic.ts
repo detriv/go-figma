@@ -5,6 +5,18 @@ export interface SemanticResult {
   attrs?: [name: string, value: string][];
 }
 
+export interface FrameSemanticContext {
+  insideHeaderOrFooter?: boolean;
+  insideTable?: boolean;
+}
+
+/** Table parts are layout boxes, not page/section header or footer elements. */
+export function isTableFrame(node: FrameNode): boolean {
+  return [node.name, node.component?.name ?? ""].some((name) =>
+    /\btables?\b/i.test(name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ")),
+  );
+}
+
 /**
  * Infers semantic HTML5 elements from layer names, roles, and hierarchy:
  * - Singular button / CTA layers -> <button type="button"> (not plural groups)
@@ -12,8 +24,10 @@ export interface SemanticResult {
  * - Headers, Footers, Asides, Sections, Main -> <header>, <footer>, <aside>, <section>, <main>
  * - Headings & Paragraphs -> <h1>, <h2>, <h3>, <h4>, <p>
  */
-export function inferFrameTag(node: FrameNode, parent: FrameNode | null): SemanticResult {
+export function inferFrameTag(node: FrameNode, parent: FrameNode | null, context: FrameSemanticContext = {}): SemanticResult {
   const name = node.name.trim();
+  const blockHeaderFooter = context.insideHeaderOrFooter || context.insideTable ||
+    isTableFrame(node) || (parent !== null && isTableFrame(parent));
 
   // 1. Buttons / Action elements (e.g. "Primary Button", "Submit Btn", "CTA", "Login Button")
   if (
@@ -30,12 +44,12 @@ export function inferFrameTag(node: FrameNode, parent: FrameNode | null): Semant
 
   // 3. Header / Top bar
   if (/\b(headers?|top[-_ ]?bars?|app[-_ ]?bars?)\b/i.test(name)) {
-    return { tag: "header" };
+    return { tag: blockHeaderFooter ? "div" : "header" };
   }
 
   // 4. Footer / Bottom bar
   if (/\b(footers?|bottom[-_ ]?bars?)\b/i.test(name)) {
-    return { tag: "footer" };
+    return { tag: blockHeaderFooter ? "div" : "footer" };
   }
 
   // 5. Sidebar / Aside drawer

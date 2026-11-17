@@ -4,7 +4,7 @@ import type { ComponentRef, FrameNode, IRNode, TextNode } from "../core/ir";
 import { inferResponsiveLayout } from "../core/inferLayout";
 import { commonDecls, nodeStyle, segmentStyle, withoutDecls, type Decl, type StyleContext } from "./css";
 import { alignColumnSlots } from "./columnSlots";
-import { inferFrameTag, inferTextTag } from "./semantic";
+import { inferFrameTag, inferTextTag, isTableFrame, type FrameSemanticContext } from "./semantic";
 import { makeFluidTree, mergeScreens, mergeStates, pageGroups, pageName } from "./responsive";
 
 export interface StyledElement {
@@ -80,7 +80,7 @@ export function buildTree(roots: IRNode[], ctx: StyleContext): StyledElement[] {
   });
 }
 
-function buildNode(node: IRNode, parent: FrameNode | null, ctx: StyleContext, inButton = false): StyledElement {
+function buildNode(node: IRNode, parent: FrameNode | null, ctx: StyleContext, inButton = false, semanticContext: FrameSemanticContext = {}): StyledElement {
   const style = nodeStyle(node, parent, ctx);
   const attrs = ctx.annotate ? sourceAttrs(node) : [];
 
@@ -91,7 +91,7 @@ function buildNode(node: IRNode, parent: FrameNode | null, ctx: StyleContext, in
   const extraDecls: Decl[] = [];
 
   if (ctx.semanticHtml && node.kind === "frame" && !inButton) {
-    const semantic = inferFrameTag(node, parent);
+    const semantic = inferFrameTag(node, parent, semanticContext);
     tag = semantic.tag;
     if (semantic.attrs) semanticAttrs = semantic.attrs;
     if (tag === "button" && !style.some(([p]) => p === "cursor")) {
@@ -113,11 +113,18 @@ function buildNode(node: IRNode, parent: FrameNode | null, ctx: StyleContext, in
   });
 
   switch (node.kind) {
-    case "frame":
+    case "frame": {
+      // Keep actual semantic ancestry through arbitrary wrappers; inspecting
+      // only the immediate Figma parent misses nested headers/footers.
+      const childContext: FrameSemanticContext = {
+        insideHeaderOrFooter: semanticContext.insideHeaderOrFooter || tag === "header" || tag === "footer",
+        insideTable: semanticContext.insideTable || isTableFrame(node),
+      };
       return element(
         "frame",
-        node.children.map((child) => buildNode(child, node, ctx, inButton || tag === "button")),
+        node.children.map((child) => buildNode(child, node, ctx, inButton || tag === "button", childContext)),
       );
+    }
     case "shape":
       return element("shape", []);
     case "svg":
