@@ -277,11 +277,12 @@ function SettingsMenu({ settings, update }: { settings: Settings; update: (patch
   }, [open]);
 
   const options: {
-    key: "useColorVariables" | "inlineSvg" | "optimizeImages" | "fluidSingleFrame" | "semanticHtml";
+    key: "useColorVariables" | "inlineSvg" | "optimizeImages" | "fluidSingleFrame" | "semanticHtml" | "scopedClassNames";
     label: string;
     caption: string;
   }[] = [
     { key: "semanticHtml", label: "Semantic HTML", caption: "Infer semantic tags (<button>, <nav>, <header>, headings, etc.)" },
+    { key: "scopedClassNames", label: "Frame-specific CSS classes", caption: "Use frame identity and named containers to avoid generic CSS class collisions" },
     { key: "fluidSingleFrame", label: "Fluid single frame", caption: "Make single frame exports responsive and fluid (100% width, flexible wrap)" },
     { key: "useColorVariables", label: "Color variables", caption: "var(--token, #fallback) for colors bound to variables" },
     { key: "inlineSvg", label: "Inline SVG", caption: "Vectors and small icons as inline <svg>" },

@@ -59,7 +59,7 @@ export function designContext(
   images: ImageAsset[],
   format: Target,
   warnings: Warnings,
-  settings?: Partial<Pick<Settings, "semanticHtml" | "fluidSingleFrame">>,
+  settings?: Partial<Pick<Settings, "semanticHtml" | "fluidSingleFrame" | "scopedClassNames">>,
 ): DesignContext {
   const icons = new Map<string, DesignAsset>();
   const fits = imageFits(roots, images);
@@ -86,7 +86,7 @@ export function designContext(
   let sections: CodeSection[];
   switch (format) {
     case "html-css": {
-      const { html, css } = generateHtmlCss(tree);
+      const { html, css } = generateHtmlCss(tree, settings);
       sections = [
         { title: "HTML", language: "HTML", code: html },
         { title: "CSS", language: "CSS", code: css },

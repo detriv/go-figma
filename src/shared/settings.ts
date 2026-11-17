@@ -18,6 +18,8 @@ export interface Settings {
   fluidSingleFrame: boolean;
   /** Infer semantic HTML5 tags (button, nav, header, footer, headings) from layer names. */
   semanticHtml: boolean;
+  /** Namespace generated custom CSS classes by frame and named container. */
+  scopedClassNames: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -27,6 +29,7 @@ export const DEFAULT_SETTINGS: Settings = {
   optimizeImages: true,
   fluidSingleFrame: true,
   semanticHtml: true,
+  scopedClassNames: true,
 };
 
 export function isTarget(value: unknown): value is Target {
@@ -44,5 +47,6 @@ export function sanitizeSettings(raw: unknown): Settings {
   if (typeof r.optimizeImages === "boolean") result.optimizeImages = r.optimizeImages;
   if (typeof r.fluidSingleFrame === "boolean") result.fluidSingleFrame = r.fluidSingleFrame;
   if (typeof r.semanticHtml === "boolean") result.semanticHtml = r.semanticHtml;
+  if (typeof r.scopedClassNames === "boolean") result.scopedClassNames = r.scopedClassNames;
   return result;
 }

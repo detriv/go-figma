@@ -16,7 +16,7 @@ export const IMAGE_DIR = "images";
 export function generate(
   roots: IRNode[],
   images: ImageAsset[],
-  settings: Pick<Settings, "target"> & Partial<Pick<Settings, "fluidSingleFrame" | "semanticHtml">>,
+  settings: Pick<Settings, "target"> & Partial<Pick<Settings, "fluidSingleFrame" | "semanticHtml" | "scopedClassNames">>,
   warnings: Warnings,
 ): GenerateResult {
   const byHash = new Map(images.map((i) => [i.hash, i]));
@@ -32,12 +32,13 @@ export function generate(
     images.length === 0
       ? tree
       : buildTree(roots, { warnings, imageUrl: (hash) => PREVIEW_IMAGE_PREFIX + hash, fluidSingleFrame, semanticHtml });
-  const preview = generateHtmlCss(previewTree);
+  const htmlOptions = { scopedClassNames: settings.scopedClassNames ?? false };
+  const preview = generateHtmlCss(previewTree, htmlOptions);
 
   let sections: CodeSection[];
   switch (settings.target) {
     case "html-css": {
-      const code = previewTree === tree ? preview : generateHtmlCss(tree);
+      const code = previewTree === tree ? preview : generateHtmlCss(tree, htmlOptions);
       sections = [
         { title: "HTML", language: "HTML", code: code.html },
         { title: "CSS", language: "CSS", code: code.css },

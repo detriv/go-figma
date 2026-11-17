@@ -1,6 +1,6 @@
 // IR → styled element tree. Target-agnostic: each element carries its CSS
 // declarations; the HTML+CSS and Tailwind generators decide how to attach them.
-import type { FrameNode, IRNode, TextNode } from "../core/ir";
+import type { ComponentRef, FrameNode, IRNode, TextNode } from "../core/ir";
 import { inferResponsiveLayout } from "../core/inferLayout";
 import { commonDecls, nodeStyle, segmentStyle, withoutDecls, type Decl, type StyleContext } from "./css";
 import { alignColumnSlots } from "./columnSlots";
@@ -14,6 +14,12 @@ export interface StyledElement {
   name: string;
   /** Fallback name when the layer name is Figma's default ("Frame 12"). */
   role: string;
+  /** Stable source identity for frame-specific CSS names; not an HTML attribute. */
+  sourceId?: string;
+  /** A Figma text layer, not a structural wrapper or rich-text run. */
+  textLayer?: boolean;
+  /** Component variant identity, retained without requiring annotation attrs. */
+  component?: Pick<ComponentRef, "name" | "properties">;
   style: Decl[];
   /** Overrides from larger breakpoints, smallest first (responsive pages only). */
   responsive?: ResponsiveStyle[];
@@ -98,6 +104,8 @@ function buildNode(node: IRNode, parent: FrameNode | null, ctx: StyleContext, in
     kind: "element",
     tag,
     name: node.name,
+    sourceId: node.id,
+    ...(node.component ? { component: node.component } : {}),
     role: tag !== "div" ? tag : role,
     style: withBaseline(tag, [...style, ...extraDecls, ...extra]),
     ...(allAttrs.length > 0 ? { attrs: allAttrs } : {}),
@@ -158,7 +166,7 @@ function buildText(node: TextNode, style: Decl[], ctx: StyleContext, inButton: b
   }
 
   const tag = inButton ? "span" : ctx.semanticHtml ? inferTextTag(node).tag : "div";
-  return { kind: "element", tag, name: node.name, role: tag !== "div" ? tag : "text", style: withBaseline(tag, [...style, ...shared]), children };
+  return { kind: "element", tag, name: node.name, sourceId: node.id, textLayer: true, role: tag !== "div" ? tag : "text", style: withBaseline(tag, [...style, ...shared]), children };
 }
 
 /** Reset only emitted semantic elements, with design declarations winning.

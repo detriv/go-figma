@@ -503,6 +503,11 @@ function overrides(targets: Targets, names: string[]): Pick<StyledElement, "styl
 
 const PADDING = ["padding-top", "padding-right", "padding-bottom", "padding-left"];
 
+/** A cascade-safe override, including resets and complete padding shorthand sides. */
+export function diffStyles(current: Decl[], wanted: Decl[]): Decl[] {
+  return diff(new Map(current), new Map(wanted));
+}
+
 function diff(current: Map<string, string>, wanted: Map<string, string>): Decl[] {
   const changed = new Set<string>();
   for (const [p, v] of wanted) if (current.get(p) !== v) changed.add(p);

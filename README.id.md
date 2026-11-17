@@ -73,12 +73,14 @@ Buka plugin dan pilih frame apa pun pada canvas Figma. Kode akan otomatis diperb
 | Bagian | Fungsi |
 | --- | --- |
 | Pemilih Stack (kiri atas) | Pilihan output: HTML + CSS / React + Tailwind / HTML + Tailwind |
-| ⚙ Code options | Opsi generasi kode: Semantic HTML, Fluid single frame, Optimize images, Color variables, Inline SVG |
+| ⚙ Code options | Opsi generasi kode: Semantic HTML, Frame-specific CSS classes (default aktif), Fluid single frame, Optimize images, Color variables, Inline SVG |
 | `MCP · n` | Status server MCP dan jumlah agent yang sedang terhubung; klik untuk membuka panel manajemen agent |
 | Tab Kode / **Preview** | Melihat kode per file atau melihat live preview interaktif (iframe) |
 | `≈ … tokens` | Estimasi token dari kode (mengukur konsumsi context window agent AI) |
 | Copy · Images · Export | Salin kode, unduh aset gambar sebagai `.zip`, atau ekspor seluruh proyek |
 | **Copy for AI** | Salin prompt praktis agar AI agent mengambil dan menganalisis desain via MCP |
+
+Saat **Frame-specific CSS classes** aktif, instance komponen sibling dengan properti Figma `active=off/on` memakai satu class dasar dan modifier `--active`. Warna, shadow, ukuran, padding, dan tipografi aktif tetap mengikuti desain; cukup pindahkan modifier pada elemen induknya untuk memindahkan tampilan aktif. Varian yang struktur atau aturan responsif/state-nya belum kompatibel tetap dipisahkan agar tidak merusak desain. Generator tidak menambahkan logika klik. Setelah memperbarui plugin, generate ulang dan ganti **HTML serta CSS** bersamaan.
 
 ### Dev Mode
 

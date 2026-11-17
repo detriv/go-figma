@@ -106,7 +106,7 @@ function staticSite(
   const files: ProjectFile[] = [];
 
   if (target === "html-css") {
-    const { css, pages: bodies } = generateHtmlCss(tree);
+    const { css, pages: bodies } = generateHtmlCss(tree, settings);
     pages.forEach((page, i) => {
       files.push({
         path: htmlFile(page),

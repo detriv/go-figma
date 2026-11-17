@@ -23,6 +23,13 @@ export function toPascal(name: string): string {
   return /^[0-9]/.test(pascal) ? `Component${pascal}` : pascal;
 }
 
+/** Stable readable base, shared by scoped selectors and duplicate handling. */
+export function classBaseName(layerName: string, fallback: string): string {
+  let base = GENERIC_NAME.test(layerName.trim()) ? fallback : toKebab(layerName);
+  if (!base) base = fallback;
+  return /^[0-9]/.test(base) ? `${fallback}-${base}` : base;
+}
+
 /** Hands out unique, readable CSS class names derived from layer names. */
 export class ClassNamer {
   /** Next suffix to try per base name. */
@@ -32,9 +39,7 @@ export class ClassNamer {
 
   /** `fallback` is used for Figma's auto-generated names like "Frame 12". */
   name(layerName: string, fallback: string): string {
-    let base = GENERIC_NAME.test(layerName.trim()) ? fallback : toKebab(layerName);
-    if (!base) base = fallback;
-    if (/^[0-9]/.test(base)) base = `${fallback}-${base}`;
+    const base = classBaseName(layerName, fallback);
     let n = this.next.get(base) ?? 1;
     let name = n === 1 ? base : `${base}-${n}`;
     while (this.taken.has(name)) name = `${base}-${++n}`;
