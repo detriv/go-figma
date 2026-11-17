@@ -114,7 +114,7 @@ interface MergeState {
 /** One built tree per tagged frame, smallest first. */
 export function mergeScreens(screens: StyledElement[], breakpoints: Breakpoint[], name: string, warnings: Warnings): StyledElement {
   const tiers = breakpoints.map(tierOf);
-  return { ...merge(screens.map(fluid), (targets) => cascade(targets, tiers), warnings), name };
+  return { ...merge(screens.map((screen) => fitTree(screen, undefined, false)), (targets) => cascade(targets, tiers), warnings), name };
 }
 
 /** One built tree per tagged frame, the default state first. */
@@ -186,10 +186,20 @@ function isTableContainer(element: StyledElement): boolean {
  * - Media/images are constrained to max-width: 100%.
  */
 export function makeFluidTree(root: StyledElement, rootWidth?: number): StyledElement {
+  return fitTree(root, rootWidth, true);
+}
+
+// Merged screens already specify their row/column choices: fit their contents
+// without inventing wrapping that changes the authored breakpoint layouts.
+function fitTree(root: StyledElement, rootWidth: number | undefined, wrapRows: boolean): StyledElement {
   const width = rootWidth ?? parseWidth(root.style);
   let fluidRoot = fluid(root);
+  if (isControl(root)) return fitControl(fluidRoot, width);
 
   const isTable = isTableContainer(root);
+  if (wrapRows && !isTable && shouldWrap(root)) {
+    fluidRoot = { ...fluidRoot, style: [...fluidRoot.style, ["flex-wrap", "wrap"]] };
+  }
   if (isTable) {
     const style = fluidRoot.style
       .filter(([p]) => p !== "overflow" && p !== "overflow-x")
@@ -202,12 +212,60 @@ export function makeFluidTree(root: StyledElement, rootWidth?: number): StyledEl
 
   return {
     ...fluidRoot,
-    children: fluidRoot.children.map((child) => fluidChild(child, width, isTable)),
+    children: fluidRoot.children.map((child) => fluidChild(child, contentWidth(root, width), isTable, root, wrapRows)),
   };
 }
 
-function fluidChild(child: StyledChild, rootWidth: number, insideTable = false): StyledChild {
+function contentWidth(element: StyledElement, fallback: number): number {
+  const map = new Map(element.style);
+  const width = parsePx(map.get("width") ?? "") ?? fallback;
+  return Math.max(0, width - ["padding-left", "padding-right", "border-left-width", "border-right-width"]
+    .reduce((sum, prop) => sum + (parsePx(map.get(prop) ?? "") ?? 0), 0));
+}
+
+function isControl(element: StyledElement): boolean {
+  return /^(button|nav|input|select|textarea|a)$/.test(element.tag) ||
+    (element.role !== "shape" && element.role !== "icon" &&
+      /\b(buttons?|btns?|cta|navbars?|navs?|navigation|controls?|toolbars?)\b/i.test(element.name));
+}
+
+function fitControl(element: StyledElement, parentWidth: number, parent?: StyledElement): StyledElement {
+  const style = new Map(element.style);
+  const width = parsePx(style.get("width") ?? "");
+  const parentStyle = new Map(parent?.style ?? []);
+  const spansParent = parentStyle.get("display") !== "flex" || parentStyle.get("flex-direction") === "column";
+  // Preserve internal control geometry, but do not let its desktop outer box
+  // bypass fluid fitting. Explicit bounds remain authoritative.
+  if (!style.has("min-width") && !style.has("max-width")) {
+    if (width !== null && spansParent && width >= parentWidth * 0.88) style.set("width", "100%");
+    style.set("max-width", "100%");
+  }
+  if (element.tag === "nav" || /\b(navbars?|navs?|navigation)\b/i.test(element.name)) {
+    if (!style.has("min-width")) style.set("min-width", "0");
+    // If its authored contents cannot fit, scroll locally instead of stretching
+    // the page. Do not replace an explicitly clipped/scrolled container.
+    if (!style.has("overflow") && !style.has("overflow-x")) style.set("overflow-x", "auto");
+  }
+  return { ...element, style: [...style] };
+}
+
+function shouldWrap(element: StyledElement): boolean {
+  const map = new Map(element.style);
+  if (isControl(element) || map.get("position") === "absolute" || map.has("flex-wrap") || map.has("max-height") ||
+    map.get("display") !== "flex" || map.get("flex-direction") === "column") return false;
+  // Reflow content groups, not icon/label pairs, navigation, or floating layers.
+  const items = element.children.filter((c): c is StyledElement => c.kind === "element" &&
+    !c.style.some(([p, v]) => p === "position" && v === "absolute"));
+  return items.length > 1 && items.every((c) => !isControl(c) &&
+    (c.role === "frame" || /^(section|article|main|aside|header|footer)$/.test(c.tag)));
+}
+
+function fluidChild(child: StyledChild, parentWidth: number, insideTable: boolean, parent: StyledElement, wrapRows: boolean): StyledChild {
   if (child.kind !== "element") return child;
+  // Floating overlays keep their geometry. Controls keep internal arrangement,
+  // while their outer box still participates in parent-width fitting.
+  if (child.style.some(([p, v]) => p === "position" && v === "absolute")) return child;
+  if (isControl(child)) return fitControl(child, parentWidth, parent);
 
   let style = [...child.style];
   const map = new Map(style);
@@ -241,14 +299,14 @@ function fluidChild(child: StyledChild, rootWidth: number, insideTable = false):
     if (isRow && pxWidth !== null && pxWidth > 0 && !map.has("min-width")) {
       style.push(["min-width", `${pxWidth}px`]);
     }
-  } else if (!nowInsideTable) {
-    // 1. Full-width sections inside the frame:
-    // If a section was drawn to match or span nearly the entire root frame (>= rootWidth - 2),
-    // OR if it spans at least 88% of the root frame width — this covers elements that fill the
-    // content area after accounting for common horizontal padding (e.g., 16px × 2 = 32px on a
-    // 390px frame → content width is 358px ≈ 91.8% of rootWidth).
-    // Both conditions mean "this element is meant to be full-width, just inset by padding".
-    if (pxWidth !== null && (pxWidth >= rootWidth - 2 || pxWidth >= rootWidth * 0.88)) {
+  } else if (!nowInsideTable && map.get("position") !== "absolute" && !isControl(child) &&
+    (wrapRows || child.role === "frame" || child.children.length > 0)) {
+    // Compare against the immediate parent's measured content box, not the
+    // page width. Row siblings are separate items, not full-width sections.
+    const parentStyle = new Map(parent.style);
+    const spansParent = parentStyle.get("display") !== "flex" || parentStyle.get("flex-direction") === "column";
+    if (pxWidth !== null && spansParent && !map.has("min-width") && !map.has("max-width") &&
+      (pxWidth >= parentWidth - 2 || pxWidth >= parentWidth * 0.88)) {
       style = style.map(([p, v]): Decl => (p === "width" ? ["width", "100%"] : [p, v]));
     } else if (pxWidth !== null && pxWidth > 0) {
       // 2. Fixed-width elements (cards, containers, dialogs, etc.):
@@ -257,21 +315,33 @@ function fluidChild(child: StyledChild, rootWidth: number, insideTable = false):
         style.push(["max-width", "100%"]);
         map.set("max-width", "100%");
       }
-      // For elements wider than small mobile (e.g. > 280px), remove flex-shrink: 0 if present,
-      // so they are allowed to shrink in flex containers.
-      if (pxWidth > 280) {
+      // Relax horizontal shrinking only; in columns this declaration protects
+      // the item's height. Explicit width bounds remain authoritative.
+      if (pxWidth > 280 && parentStyle.get("display") === "flex" &&
+        parentStyle.get("flex-direction") !== "column" && !map.has("min-width") &&
+        !child.style.some(([p]) => p === "max-width")) {
         style = style.filter(([p]) => p !== "flex-shrink");
       }
+    }
+
+    if (pxWidth !== null && pxWidth > 280 && !map.has("min-width") &&
+      (parentStyle.get("display") === "flex" || parentStyle.get("display") === "grid")) {
+      style.push(["min-width", "0"]);
     }
 
     // 3. Flex rows (outside tables):
     // If an element is a flex container with row direction (or default row),
     // and has multiple children, add flex-wrap: wrap so children stack on small screens.
-    const isFlex = map.get("display") === "flex" || map.get("display") === "inline-flex";
-    const isColumn = map.get("flex-direction") === "column";
-    if (isFlex && !isColumn && child.children.length > 1 && !map.has("flex-wrap")) {
+    if (wrapRows && shouldWrap(child)) {
       style.push(["flex-wrap", "wrap"]);
       map.set("flex-wrap", "wrap");
+      // A measured one-line height cannot contain additional flex lines. Keep
+      // the original visual floor, but let normal flow move the next section.
+      const height = map.get("height");
+      if (height && !map.has("max-height")) {
+        style = style.filter(([p]) => p !== "height");
+        if (!map.has("min-height")) style.push(["min-height", height]);
+      }
     }
   }
 
@@ -283,11 +353,23 @@ function fluidChild(child: StyledChild, rootWidth: number, insideTable = false):
     }
   }
 
-  return {
-    ...child,
-    style,
-    children: child.children.map((c) => fluidChild(c, rootWidth, nowInsideTable)),
-  };
+  const children = child.children.map((c) => fluidChild(c, contentWidth(child, parentWidth), nowInsideTable, child, wrapRows));
+  const descendantReflows = children.some((next, index) => {
+    const before = child.children[index];
+    return before.kind === "element" && next.kind === "element" &&
+      before.style.some(([p]) => p === "height") &&
+      !next.style.some(([p]) => p === "height") &&
+      !next.style.some(([p, v]) => p === "position" && v === "absolute");
+  });
+  // Reflow must propagate through flow wrappers, otherwise their next sibling
+  // still starts at the old height even though a descendant gained flex lines.
+  if (!nowInsideTable && descendantReflows && map.get("display") === "flex" &&
+    map.get("flex-direction") === "column" && map.has("height") && !map.has("max-height")) {
+    style = style.filter(([p]) => p !== "height");
+    if (!map.has("min-height")) style.push(["min-height", map.get("height")!]);
+  }
+
+  return { ...child, style, children };
 }
 
 function mergeElement(variants: Variants, extras: Decl[][], state: MergeState): StyledElement {

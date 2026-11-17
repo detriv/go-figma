@@ -10,6 +10,7 @@
 //    spacing becomes per-child margins. Only truly overlapping layers stay
 //    absolutely positioned, inside the smallest wrapper that holds them.
 import type { AutoLayout, Box, FrameNode, IRNode, Sides } from "./ir";
+import type { Warnings } from "./warnings";
 
 const EPS = 1; // px tolerance for "touching", "aligned" and "contained"
 
@@ -17,21 +18,54 @@ export function inferLayout(node: IRNode): IRNode {
   return node.kind === "frame" ? inferFrame(node) : node;
 }
 
-function inferFrame(frame: FrameNode): FrameNode {
-  if (frame.layout) return { ...frame, children: frame.children.map(inferLayout) };
+/** Only infer simple, contained content groups in fluid single-frame mode.
+ * Ambiguous art/overlays keep authored geometry and get an actionable warning.
+ */
+export function inferResponsiveLayout(node: IRNode, warnings: Warnings): IRNode {
+  return node.kind === "frame" ? inferFrame(node, warnings) : node;
+}
 
-  const children = nestIntoContainers(frame.children).map(inferLayout);
+function inferFrame(frame: FrameNode, warnings?: Warnings): FrameNode {
+  // A rejected parent may revisit its original children after containment was
+  // attempted. Reuse each result instead of traversing deep subtrees twice.
+  const inferred = new Map<IRNode, IRNode>();
+  const infer = (node: IRNode): IRNode => {
+    let result = inferred.get(node);
+    if (!result) {
+      result = warnings ? inferResponsiveLayout(node, warnings) : inferLayout(node);
+      inferred.set(node, result);
+    }
+    return result;
+  };
+  if (frame.layout) return { ...frame, children: frame.children.map(infer) };
+  const keep = () => {
+    if (warnings && frame.children.some((child) => child.positioning === "absolute")) {
+      warnings.add(`Freeform layout "${frame.name}" keeps absolute positioning; use Auto Layout or explicit responsive frames to guarantee a narrow-screen fit.`);
+    }
+    return { ...frame, children: frame.children.map(infer) };
+  };
+  if (warnings && (frame.children.length < 2 || frame.children.some((child) =>
+    child.box.flip || child.box.rotation !== 0 || child.box.x < 0 || child.box.y < 0 ||
+    child.box.x + child.box.width > frame.box.width + EPS ||
+    child.box.y + child.box.height > frame.box.height + EPS ||
+    (child.constraints && (child.constraints.horizontal !== "start" || child.constraints.vertical !== "start"))
+  ))) return keep();
+
+  const children = nestIntoContainers(frame.children).map(infer);
   if (children.length === 0 || children.some((c) => c.positioning !== "absolute" || c.box.rotation !== 0)) {
-    return { ...frame, children };
+    return warnings ? keep() : { ...frame, children };
   }
 
   const tree = partition(children);
-  if (tree.kind === "overlap") return { ...frame, children };
+  if (tree.kind === "overlap") return warnings ? keep() : { ...frame, children };
 
   const items = tree.kind === "leaf" ? [tree] : tree.items;
   const direction = tree.kind === "stack" ? tree.direction : "column";
   const flow = items.map((item) => materialize(item));
   const { layout, children: placed } = measure(direction, flow, { width: frame.box.width, height: frame.box.height });
+  // Large whitespace is often intentional artwork/placement, not safe padding
+  // to carry onto a phone. Do not turn that uncertainty into a guessed layout.
+  if (warnings && (layout.padding.left > 64 || layout.padding.right > 64)) return keep();
   return { ...frame, layout, children: placed };
 }
 
@@ -50,7 +84,8 @@ function contains(outer: Box, inner: Box): boolean {
 }
 
 const canContain = (n: IRNode) =>
-  n.box.rotation === 0 && !n.box.flip && (n.kind === "shape" || (n.kind === "frame" && n.layout === null));
+  n.box.rotation === 0 && !n.box.flip && n.opacity === 1 && n.effects.length === 0 &&
+  (n.kind === "shape" || (n.kind === "frame" && n.layout === null));
 
 /** Re-parent each layer under the smallest container below it that fully encloses it. */
 function nestIntoContainers(nodes: IRNode[]): IRNode[] {

@@ -7,7 +7,7 @@ import type { ImageAsset, IRNode, SvgNode } from "../core/ir";
 import { toKebab } from "../core/naming";
 import type { Warnings } from "../core/warnings";
 import type { CodeSection } from "../shared/messages";
-import type { Target } from "../shared/settings";
+import type { Settings, Target } from "../shared/settings";
 import { generateHtmlCss } from "./htmlCss";
 import { generateTailwind } from "./tailwind";
 import { buildTree } from "./tree";
@@ -54,7 +54,13 @@ export interface DesignContext {
   assets: DesignAsset[];
 }
 
-export function designContext(roots: IRNode[], images: ImageAsset[], format: Target, warnings: Warnings): DesignContext {
+export function designContext(
+  roots: IRNode[],
+  images: ImageAsset[],
+  format: Target,
+  warnings: Warnings,
+  settings?: Partial<Pick<Settings, "semanticHtml" | "fluidSingleFrame">>,
+): DesignContext {
   const icons = new Map<string, DesignAsset>();
   const fits = imageFits(roots, images);
   const svgUrl = (node: SvgNode) => {
@@ -71,7 +77,11 @@ export function designContext(roots: IRNode[], images: ImageAsset[], format: Tar
   };
   const byHash = new Map(images.map((i) => [i.hash, i]));
   const imageUrl = (hash: string) => `${ASSET_DIR}/${byHash.get(hash)?.fileName ?? hash}`;
-  const tree = buildTree(roots, { warnings, imageUrl, svgUrl, annotate: true });
+  const tree = buildTree(roots, {
+    warnings, imageUrl, svgUrl, annotate: true,
+    semanticHtml: settings?.semanticHtml,
+    fluidSingleFrame: settings?.fluidSingleFrame,
+  });
 
   let sections: CodeSection[];
   switch (format) {

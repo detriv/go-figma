@@ -116,6 +116,8 @@ Jika Anda memilih beberapa frame sekaligus di Figma, bilah **Pages** menyediakan
 
 ## Layout Responsif & Fluid Single Frame
 
+> Generator kini memiliki pengujian browser untuk overflow, section bertumpuk, dan struktur semantic HTML. Aturan fitting tidak memaksa wrapping pada tombol, navigasi, overlay, atau bagian dalam tabel. Layout freeform yang ambigu dipertahankan dan diberi warning, bukan ditebak. Detail batasan dan cara menjalankan `npm run test:browser`: [HTML output correctness](docs/html-output-quality.md).
+
 Jika Anda hanya mendesain dan mengekspor **satu frame saja** (misal hanya layout Desktop), plugin secara otomatis mengaktifkan kecerdasan fluid responsif:
 - **Full-Bleed 100%**: Root halaman menyesuaikan lebar layar perangkat (`width: 100%`, `min-height`).
 - **Section Melebar Penuh**: Bagian frame utama yang membentang penuh otomatis menjadi `width: 100%` (`w-full`).

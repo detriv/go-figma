@@ -1,7 +1,13 @@
 import type { IRNode } from "../core/ir";
 
 // Fonts that ship with operating systems and aren't on Google Fonts.
-const SYSTEM_FONT = /^(arial|helvetica|times|georgia|verdana|tahoma|trebuchet|courier|segoe|sf |sf-|san francisco|apple|system-ui|menlo|consolas|calibri|cambria)/i;
+const SYSTEM_FONTS = new Set([
+  "arial", "arial black", "arial narrow", "helvetica", "helvetica neue",
+  "times", "times new roman", "georgia", "verdana", "tahoma", "trebuchet ms",
+  "courier", "courier new", "segoe ui", "segoe ui variable", "segoe ui symbol", "segoe ui emoji",
+  "sf pro", "sf pro display", "sf pro text", "sf compact", "sf compact display", "sf compact text", "sf mono",
+  "san francisco", "apple color emoji", "apple symbols", "system-ui", "menlo", "consolas", "calibri", "cambria",
+]);
 
 /**
  * Google Fonts stylesheet URLs for the fonts used in the design. One URL per
@@ -14,7 +20,7 @@ export function googleFontUrls(roots: IRNode[]): string[] {
   const walk = (node: IRNode) => {
     if (node.kind === "text") {
       for (const s of node.text.segments) {
-        if (s.fontFamily === "" || SYSTEM_FONT.test(s.fontFamily)) continue;
+        if (s.fontFamily === "" || SYSTEM_FONTS.has(s.fontFamily.toLowerCase())) continue;
         const styles = usage.get(s.fontFamily) ?? new Set<string>();
         styles.add(`${s.italic ? 1 : 0},${Math.round(s.fontWeight)}`);
         usage.set(s.fontFamily, styles);

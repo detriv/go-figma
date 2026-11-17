@@ -7,7 +7,7 @@ export interface SemanticResult {
 
 /**
  * Infers semantic HTML5 elements from layer names, roles, and hierarchy:
- * - Buttons / CTAs -> <button type="button">
+ * - Singular button / CTA layers -> <button type="button"> (not plural groups)
  * - Navigation -> <nav>
  * - Headers, Footers, Asides, Sections, Main -> <header>, <footer>, <aside>, <section>, <main>
  * - Headings & Paragraphs -> <h1>, <h2>, <h3>, <h4>, <p>
@@ -17,7 +17,7 @@ export function inferFrameTag(node: FrameNode, parent: FrameNode | null): Semant
 
   // 1. Buttons / Action elements (e.g. "Primary Button", "Submit Btn", "CTA", "Login Button")
   if (
-    /\b(buttons?|btns?|cta)\b/i.test(name) ||
+    /\b(button|btn|cta)\b/i.test(name) ||
     /(submit|action|login|signup|buy|order|close|menu|cancel|next|prev|download|upload)[-_ ]?(button|btn)\b/i.test(name)
   ) {
     return { tag: "button", attrs: [["type", "button"]] };

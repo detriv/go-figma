@@ -141,10 +141,14 @@ export function nodeStyle(node: IRNode, parent: FrameNode | null, ctx: StyleCont
     if (text.truncate) {
       push("overflow", "hidden");
       push("text-overflow", "ellipsis");
-      push("white-space", "nowrap");
+      push("white-space", "pre");
     } else if (node.sizing.horizontal === "hug") {
       // Figma "auto width" text never wraps.
-      push("white-space", "nowrap");
+      push("white-space", "pre");
+    } else {
+      // Preserve authored spaces (including across styled runs), but allow
+      // fixed/fill text to wrap rather than treating it as an auto-width label.
+      push("white-space", "break-spaces");
     }
   }
 
@@ -435,7 +439,8 @@ export function segmentStyle(segment: TextSegment, warnings: Warnings): Decl[] {
   if (segment.color) push("color", cssColor(segment.color));
   push("font-family", `'${segment.fontFamily.replace(/'/g, "\\'")}', ${genericFamily(segment.fontFamily)}`);
   push("font-size", px(segment.fontSize));
-  if (segment.fontWeight !== 400) push("font-weight", String(segment.fontWeight));
+  // Regular is not a browser default for headings or a run inside bold text.
+  push("font-weight", String(segment.fontWeight));
   if (segment.italic) push("font-style", "italic");
   if (segment.lineHeight) {
     const { value, unit } = segment.lineHeight;

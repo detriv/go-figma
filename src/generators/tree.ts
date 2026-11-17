@@ -1,6 +1,7 @@
 // IR → styled element tree. Target-agnostic: each element carries its CSS
 // declarations; the HTML+CSS and Tailwind generators decide how to attach them.
 import type { FrameNode, IRNode, TextNode } from "../core/ir";
+import { inferResponsiveLayout } from "../core/inferLayout";
 import { commonDecls, nodeStyle, segmentStyle, withoutDecls, type Decl, type StyleContext } from "./css";
 import { inferFrameTag, inferTextTag } from "./semantic";
 import { makeFluidTree, mergeScreens, mergeStates, pageGroups, pageName } from "./responsive";
@@ -44,8 +45,11 @@ export type StyledChild = StyledElement | { kind: "text"; text: string } | { kin
 export function buildTree(roots: IRNode[], ctx: StyleContext): StyledElement[] {
   return pageGroups(roots, ctx.warnings).map((group) => {
     if (group.length === 1) {
-      const node = buildNode(group[0], null, ctx);
-      return ctx.fluidSingleFrame ? makeFluidTree(node, group[0].box.width) : node;
+      const root = ctx.fluidSingleFrame && !group[0].state && !group[0].breakpoint
+        ? inferResponsiveLayout(group[0], ctx.warnings)
+        : group[0];
+      const node = buildNode(root, null, ctx);
+      return ctx.fluidSingleFrame ? makeFluidTree(node, root.box.width) : node;
     }
     const screens = group.map((root) => buildNode(root, null, ctx));
     return group[0].breakpoint
@@ -64,15 +68,17 @@ export function buildTree(roots: IRNode[], ctx: StyleContext): StyledElement[] {
   });
 }
 
-function buildNode(node: IRNode, parent: FrameNode | null, ctx: StyleContext): StyledElement {
+function buildNode(node: IRNode, parent: FrameNode | null, ctx: StyleContext, inButton = false): StyledElement {
   const style = nodeStyle(node, parent, ctx);
   const attrs = ctx.annotate ? sourceAttrs(node) : [];
 
-  let tag = "div";
+  // A button accepts phrasing content only. Carry this through every wrapper,
+  // not just the direct parent, so nested action-like layers stay presentational.
+  let tag = inButton ? "span" : "div";
   let semanticAttrs: [string, string][] = [];
   const extraDecls: Decl[] = [];
 
-  if (ctx.semanticHtml && node.kind === "frame") {
+  if (ctx.semanticHtml && node.kind === "frame" && !inButton) {
     const semantic = inferFrameTag(node, parent);
     tag = semantic.tag;
     if (semantic.attrs) semanticAttrs = semantic.attrs;
@@ -87,7 +93,7 @@ function buildNode(node: IRNode, parent: FrameNode | null, ctx: StyleContext): S
     tag,
     name: node.name,
     role: tag !== "div" ? tag : role,
-    style: [...style, ...extraDecls, ...extra],
+    style: withBaseline(tag, [...style, ...extraDecls, ...extra]),
     ...(allAttrs.length > 0 ? { attrs: allAttrs } : {}),
     children,
   });
@@ -96,7 +102,7 @@ function buildNode(node: IRNode, parent: FrameNode | null, ctx: StyleContext): S
     case "frame":
       return element(
         "frame",
-        node.children.map((child) => buildNode(child, node, ctx)),
+        node.children.map((child) => buildNode(child, node, ctx, inButton || tag === "button")),
       );
     case "shape":
       return element("shape", []);
@@ -106,7 +112,7 @@ function buildNode(node: IRNode, parent: FrameNode | null, ctx: StyleContext): S
       }
       return element("icon", [{ kind: "raw", markup: node.svg }]);
     case "text":
-      return { ...buildText(node, style, ctx), ...(attrs.length > 0 ? { attrs } : {}) };
+      return { ...buildText(node, style, ctx, inButton), ...(attrs.length > 0 ? { attrs } : {}) };
   }
 }
 
@@ -125,7 +131,7 @@ function sourceAttrs(node: IRNode): [string, string][] {
   return attrs;
 }
 
-function buildText(node: TextNode, style: Decl[], ctx: StyleContext): StyledElement {
+function buildText(node: TextNode, style: Decl[], ctx: StyleContext, inButton: boolean): StyledElement {
   const { segments } = node.text;
   const segmentDecls = segments.map((s) => segmentStyle(s, ctx.warnings));
   // Hoist typography shared by every segment onto the element itself.
@@ -145,6 +151,30 @@ function buildText(node: TextNode, style: Decl[], ctx: StyleContext): StyledElem
     children = [{ kind: "element", tag: "span", name: "", role: "span", style: [], children }];
   }
 
-  const tag = ctx.semanticHtml ? inferTextTag(node).tag : "div";
-  return { kind: "element", tag, name: node.name, role: tag !== "div" ? tag : "text", style: [...style, ...shared], children };
+  const tag = inButton ? "span" : ctx.semanticHtml ? inferTextTag(node).tag : "div";
+  return { kind: "element", tag, name: node.name, role: tag !== "div" ? tag : "text", style: withBaseline(tag, [...style, ...shared]), children };
+}
+
+/** Reset only emitted semantic elements, with design declarations winning.
+ * Keeping these in the shared tree gives HTML and Tailwind the same intent,
+ * without resetting the host document's body or unrelated headings/buttons.
+ */
+function withBaseline(tag: string, style: Decl[]): Decl[] {
+  const defaults: Decl[] = [];
+  if (tag === "button" || /^(p|h[1-6])$/.test(tag)) {
+    for (const side of ["top", "right", "bottom", "left"]) defaults.push([`margin-${side}`, "0"]);
+  }
+  if (tag === "button") {
+    defaults.push(
+      ["display", "block"], ["font", "inherit"], ["color", "inherit"],
+      ["text-align", "left"], ["appearance", "none"],
+      ["background-color", "transparent"], ["background-image", "none"],
+      ["border-width", "0"], ["border-style", "solid"], ["border-color", "currentColor"],
+    );
+    for (const side of ["top", "right", "bottom", "left"]) defaults.push([`padding-${side}`, "0"]);
+  }
+  // Phrasing wrappers still represent design boxes, not inline text runs.
+  // Styled run spans never pass through this helper.
+  if (tag === "span") defaults.push(["display", "block"]);
+  return [...new Map([...defaults, ...style]).entries()];
 }

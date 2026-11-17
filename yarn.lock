@@ -188,6 +188,13 @@
   resolved "https://registry.npmjs.org/@oxc-project/types/-/types-0.153.0.tgz"
   integrity sha512-jSNrRIyvPVLL5E1z/tS5zLAprosGz/FuI1PWwEOz59j3E4TTTzSpqKb/RDGqJhhW0QHYISGXxq582wGx6T11Tw==
 
+"@playwright/test@^1.65.1":
+  version "1.65.1"
+  resolved "https://registry.npmjs.org/@playwright/test/-/test-1.65.1.tgz"
+  integrity sha512-y+NCIRm2LvY4slUVWvGh1nujJ8RF/hEisIsq2mtUPgdQC4L701bq5hZGMhrpeXjACvwvO9tj5dJqhvM6TP9lbw==
+  dependencies:
+    playwright "1.65.1"
+
 "@rolldown/binding-android-arm-eabi@1.2.13":
   version "1.2.13"
   resolved "https://registry.npmjs.org/@rolldown/binding-android-arm-eabi/-/binding-android-arm-eabi-1.2.13.tgz"
@@ -1050,6 +1057,18 @@ pkce-challenge@^5.0.0:
   version "5.0.1"
   resolved "https://registry.npmjs.org/pkce-challenge/-/pkce-challenge-5.0.1.tgz"
   integrity sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ==
+
+playwright-core@1.65.1:
+  version "1.65.1"
+  resolved "https://registry.npmjs.org/playwright-core/-/playwright-core-1.65.1.tgz"
+  integrity sha512-hqPpz7blSMPxWVdoeE1yiBSzXsKiVOd2k+kjCvmUywD2GPO2Dd9HfcWnq9NN0GHbNZDFgZ9JfBFr+X5/BLo0qw==
+
+playwright@1.65.1:
+  version "1.65.1"
+  resolved "https://registry.npmjs.org/playwright/-/playwright-1.65.1.tgz"
+  integrity sha512-vJ1FuoOrNwOKHUIVEvSt3jT1L+wjjDpwhwIstKtfvTh8XIG4FG4bIFuvNdMxi81LGfAhUgUZleVFaOLY4RIUUw==
+  dependencies:
+    playwright-core "1.65.1"
 
 postcss@^8.5.28:
   version "8.5.29"

@@ -48,7 +48,7 @@ const handlers: Handlers = {
     const settings = await settingsFor({ useColorVariables: useColorVariables ?? true, inlineSvg: true });
     const warnings = new Warnings();
     const { roots, images } = await normalize(nodes, settings, warnings);
-    const context = designContext(roots, images, format, warnings);
+    const context = designContext(roots, images, format, warnings, settings);
     const codeChars = context.sections.reduce((sum, s) => sum + s.code.length, 0);
     const tooLarge = maxCodeChars !== undefined && codeChars > maxCodeChars;
     const { variables, styles } = await usedTokens(nodes);

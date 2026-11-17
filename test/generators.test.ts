@@ -217,7 +217,7 @@ describe("generate", () => {
         "export default function ProductCard() {",
         "  return (",
         '    <div className="flex flex-col items-center gap-3 px-6 py-4 w-80 h-50 bg-white rounded-xl">',
-        "      <div className=\"whitespace-nowrap font-['Inter',sans-serif] text-base\"><span className=\"text-black font-bold\">Hello </span><span className=\"text-[#0d99ff]\">world</span></div>",
+        "      <div className=\"[white-space:pre] font-['Inter',sans-serif] text-base\"><span className=\"text-black font-bold\">Hello </span><span className=\"text-[#0d99ff] font-normal\">world</span></div>",
         '      <div className="self-stretch h-px shrink-0 bg-black" />',
         "    </div>",
         "  );",

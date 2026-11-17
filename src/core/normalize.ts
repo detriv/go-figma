@@ -181,8 +181,22 @@ async function convert(
     return [];
   }
   if ("isMask" in node && node.isMask) {
-    ctx.warnings.add("Masks are not supported; mask layers were skipped.");
+    ctx.warnings.add("Selected mask layers cannot be exported independently and were skipped; select their containing frame or group.");
     await step(node, ctx, true);
+    return [];
+  }
+
+  // A mask affects siblings, not just its own layer. Preserve that compositing
+  // scope before flattening groups or converting children independently. Direct
+  // children locate the smallest containing scope; ancestors remain editable.
+  if ("children" in node && node.children.some((child) => child.visible && "isMask" in child && child.isMask)) {
+    const svg = ctx.settings.inlineSvg ? await convertSvg(node, container, parentLayout, ctx) : null;
+    await step(node, ctx, true);
+    if (svg) {
+      ctx.warnings.add("Masks are not supported as editable layers; containing frames or groups were exported as SVG.");
+      return [svg];
+    }
+    ctx.warnings.add("Masked frames or groups could not be exported as SVG and were skipped to avoid exposing unmasked layers; enable inline SVG if disabled.");
     return [];
   }
 
@@ -200,10 +214,12 @@ async function convert(
 
   switch (node.type) {
     case "GROUP":
-      // A group is only a selection helper in Figma. Outside auto layout its
-      // children can be lifted into the parent; inside auto layout it is a
-      // single flex item, so it becomes a wrapper element instead.
-      if (container && !parentLayout) {
+      // Lift only visually inert selection helpers. Opacity and effects apply
+      // to the composited group, not to each child independently.
+      if (
+        container && !parentLayout && node.opacity === 1 &&
+        !node.effects.some((effect) => effect.visible) && node.blendMode === "PASS_THROUGH"
+      ) {
         const children = await Promise.all(node.children.map((c) => convert(c, container, null, ctx)));
         return children.flat();
       }
@@ -456,6 +472,9 @@ function isIcon(node: SceneNode): boolean {
   let hasVector = false;
   const walk = (n: SceneNode): boolean => {
     if (!n.visible) return true;
+    // Let conversion reach the mask's immediate container rather than baking
+    // an unrelated ancestor and its siblings into one icon.
+    if ("isMask" in n && n.isMask) return false;
     if (!ICON_PART_TYPES.has(n.type)) return false;
     if (VECTOR_TYPES.has(n.type)) hasVector = true;
     return "children" in n ? n.children.every(walk) : true;
